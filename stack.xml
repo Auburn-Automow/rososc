@@ -1,0 +1,9 @@
+<stack>
+  <description brief="rososc">rososc</description>
+  <author>Maintained by Michael Carroll</author>
+  <license>BSD</license>  
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/rososc</url>
+  <depend stack="ros" />
+
+</stack>
