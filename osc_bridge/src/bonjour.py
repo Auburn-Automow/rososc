@@ -208,6 +208,3 @@ if __name__ == "__main__":
             pass
     except KeyboardInterrupt:
         osc_bonjour.shutdown()
-    
-
-

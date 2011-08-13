@@ -1,0 +1,14 @@
+pybonjour:
+  ubuntu:
+    pip:
+      packages: [ pybonjour ]
+      depends: [ libavahi-compat-libdnssd ] 
+pyliblo:
+  ubuntu:
+    apt:
+      packages: [ python-liblo pyliblo-utils ]
+
+libavahi-compat-libdnssd:
+  ubuntu: 
+    apt:
+      packages: [ libavahi-compat-libdnssd1 ]
