@@ -8,7 +8,11 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/osc_bridge</url>
+  <depend package="rospy" />
 
+  <rosdep name="libavahi-compat-libdnssd" />
+  <rosdep name="pybonjour" />
+  <rosdep name="pyliblo" />
 </package>
 
 

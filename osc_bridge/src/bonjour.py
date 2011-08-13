@@ -5,6 +5,7 @@ import pybonjour
 import select
 import socket
 import threading
+import time
 
 def defaultDebugMsgCallback(msg):
     """
@@ -32,6 +33,8 @@ class bonjour():
     timeout = 5
     queried = []
     resolved = []
+    _isRunning = False 
+
     def __init__(self,name,port,regtype='_osc._udp'):
         self.debug = defaultDebugMsgCallback;
         self.info = defaultInfoMsgCallback;
@@ -41,36 +44,55 @@ class bonjour():
         self.port = port
         self.regtype = regtype
         
+    def run(self):
+        self._isRunning = True
+        self.browser = threading.Thread(target=self.run_browser)
+        self.register = threading.Thread(target=self.run_register)
+
+        self.browser.start()
+        self.register.start()
+
+    def shutdown(self):
+        self._isRunning = False
+        self.browser.join()
+        self.register.join()
+        del self.browser, self.register
 
     def run_browser(self):
         browse_sdRef = pybonjour.DNSServiceBrowse(regtype = self.regtype,
                                                        callBack = self.browse_callback)
+        self.debug("Browser Service Started")
         try:
             try:
-                while True:
+                while self._isRunning:
                     ready = select.select([browse_sdRef],[],[])
                     if browse_sdRef in ready[0]:
                         pybonjour.DNSServiceProcessResult(browse_sdRef)
-            except (KeyboardInterrupt, SystemExit):
+            except Exception: 
+                self.error("Exception in Browser")
                 pass
         finally:
             browse_sdRef.close()
+            self.debug("Browser Service Stopped")
 
     def run_register(self):
         reg_sdRef = pybonjour.DNSServiceRegister(name = self.name,
                                                 regtype = self.regtype,
                                                 port = self.port,
                                                 callBack = self.register_callback)
+        self.debug("Registration Service Started")
         try:
             try:
-                while True:
+                while self._isRunning:
                     ready = select.select([reg_sdRef],[],[])
                     if reg_sdRef in ready[0]:
                         pybonjour.DNSServiceProcessResult(reg_sdRef)
-            except (KeyboardInterrupt, SystemExit):
+            except Exception:
+                self.error("Exception in Registration")
                 pass
         finally:
             reg_sdRef.close()
+            self.debug("Registration Service Stopped")
 
 
     def register_callback(self, sdRef, flags, errorCode, name, regtype, domain):
@@ -139,8 +161,6 @@ class bonjour():
             resolve_sdRef.close()
 
 if __name__ == "__main__":
-    asdf = bonjour("Test Service",1234)
-    t = threading.Thread(target=asdf.run_register)
-    t.start()
-    t2 = threading.Thread(target=asdf.run_browser)
-    t2.start()
+    osc_bonjour = bonjour("Test Service",1234)
+    osc_bonjour.run()
+
