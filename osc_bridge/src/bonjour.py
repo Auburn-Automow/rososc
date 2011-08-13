@@ -16,12 +16,17 @@ import pybonjour
 import select
 import socket
 import threading
+import copy
+from types import *
 
 
 def defaultDebugMsgCallback(msg):
     """
     Default handler for bonjour.debug.  Can be overridden with the logging facility 
     of your choice
+
+    @type msg: str
+    @param msg: Message to be displayed as a debug message.
     """
     print "Bonjour Debug: ", msg
 
@@ -29,6 +34,9 @@ def defaultInfoMsgCallback(msg):
     """
     Default handler for bonjour.info.  Can be overridden with the logging facility 
     of your choice
+
+    @type msg: str
+    @param msg: Message to be displayed as an info message.
     """
     print "Bonjour Info: ", msg
 
@@ -36,44 +44,50 @@ def defaultErrorMsgCallback(msg):
     """
     Default handler for bonjour.error.  Can be overridden with the logging facility 
     of your choice
+
+    @type msg: str
+    @param msg: Message to be displayed as an error message.
     """
     print "Bonjour Error: ", msg
 
 def quietHandler(msg):
     """
-    Used to silence command line output.
+    Can be used as a message handler to silence command line output.
+
+    @type msg: str
+    @param msg: message that will be discarded silently.
     """
     return
 
 class bonjour():
     """
-    Bonjour class
-
-    Wraps the pybonjour package to provide a simplified interface for registration
-    and browsing/resolving similar clients on the network
+    Wraps the pybonjour package to provide helper functions for registering a 
+    Bonjour service and browsing the network for services matching a certain 
+    regtype.
     """
-    def __init__(self,name="Test",port=1234,regtype='_osc._udp'):
+    def __init__(self,name,port,regtype):
         """
         Initialize a Bonjour object.  
 
-            name:
-                Name of the service to be advertised, must be UTF-8 string
-            port:
-                Port of the advertised service.  This is the port that clients will
-                connect to.
-            regtype:
-                An mDNS-compliant registration type. The service type followed by 
-                the protocol, separated by a dot (e.g. "_osc._udp").  A list of 
-                service types is available at:
-                <http://www.dns-sd.org/ServiceTypes.html>
+        @type name: UTF-8 String
+        @param name: The name of the service to be advertised
+        @type port: 16-bit unsigned integer
+        @param port: The port of the service to be advertised
+        @type regtype: str
+        @param regtype: An mDNS-compliant registration type.  The service type 
+                        followed by the protocol, separated by a dot (e.g. "_osc.
+                        _udp").  A list of service types is available at:
+                        U{http://www.dns-sd.org/ServiceTypes.html}
         """
-
         self.debug = defaultDebugMsgCallback;
         self.info = defaultInfoMsgCallback;
         self.error = defaultErrorMsgCallback;
 
+        assert type(name) is StringType
         self.name = name
+        assert type(port) is StringType or IntType
         self.port = int(port)
+        assert type(regtype) is StringType
         self.regtype = regtype
         self.domain = "local"
         self.txtrecord = pybonjour.TXTRecord()
@@ -81,37 +95,117 @@ class bonjour():
         self.fullname = pybonjour.DNSServiceConstructFullName(self.name,
                                                               self.regtype,
                                                               'local.')
+        # Sometimes the fullname doesn't come out with a trailing period. This will 
+        # cause comparisons in the browse/resolve/query callbacks to fail.
         if not self.fullname.endswith(u'.'):
             self.fullname += u'.'
 
         self.timeout = 2
         self.queried = []
         self.resolved = [] 
-        self._isRunning = False
+        self._isBrowserRunning = False
+        self._isRegisterRunning = False
+        #: Dictionary of clients detected by the Bonjour browser.  The browser
+        # will maintain a list of the clients that are currently active, and will
+        # prune clients as they leave the network.
         self.clients = dict()
+        #: Lock for modifying the dictionary of clients.
         self.clientLock = threading.Lock()
+
+    def setDebug(self,logFunction):
+        """
+        Set the debug logging handler
+
+        @type logFunction: function 
+        @param logFunction: Logging function handler of prototype f(msg)
+        """
+        assert type(logFunction) is FunctionType,\
+            "Cannot override logger, %s is not of type function"%logFunction
+        self.debug = logFunction
+
+    def setInfo(self,logFunction):
+        """
+        Set the info logging handler
+
+        @type logFunction: function 
+        @param logFunction: Logging function handler of prototype f(msg)
+        """
+        assert type(logFunction) is FunctionType,\
+            "Cannot override logger, %s is not of type function"%logFunction
+        self.info = logFunction
+
+    def setError(self,logFunction):
+        """
+        Set the error logging handler
+
+        @type logFunction: function 
+        @param logFunction: Logging function handler of prototype f(msg)
+        """
+        assert type(logFunction) is FunctionType,\
+                "Cannot override logger, %s is not of type function"%logFunction
+        self.error = logFunction
+
+    def getClients(self):
+        """
+        Get the current list of clients active on the network
+
+        @rtype: dict
+        @return: List of clients currently active on the network
+        """
+        with self.clientLock:
+            return copy.copy(self.clients)
         
+    def run_browser(self):
+        """
+        Run the Bonjour service browser
+        """
+        if not self._isBrowserRunning:
+            self._isBrowserRunning = True
+            self.browser_t = threading.Thread(target=self.browser)
+            self.browser_t.start()
+
+    def stop_browser(self):
+        """
+        Stop the Bonjour service browser
+        """
+        if self._isBrowserRunning:
+            self._isBrowserRunning = False
+            self.browser_t.join()
+            del self.browser_t
+
+    def run_register(self):
+        """
+        Run the Bonjour service registration
+        """
+        if not self._isRegisterRunning:
+            self._isRegisterRunning = True
+            self.register_t= threading.Thread(target=self.register)
+            self.register_t.start()
+
+    def stop_register(self):
+        """
+        Stop the Bonjour service registration
+        """
+        if self._isRegisterRunning:
+            self._isRegisterRunning = False
+            self.register_t.join()
+            del self.register_t
+
     def run(self):
         """
-        Spawn the worker threads for registration and browsing
+        Run both the worker threads for registration and browsing
         """
-        self._isRunning = True
-        self.browser = threading.Thread(target=self.run_browser)
-        self.register = threading.Thread(target=self.run_register)
-
-        self.browser.start()
-        self.register.start()
+        self.run_browser()
+        self.run_register()
 
     def shutdown(self):
         """
-        Stop the worker threads for registration and browsing
+        Stop both the worker threads for registration and browsing
         """
-        self._isRunning = False
-        self.browser.join()
-        self.register.join()
-        del self.browser, self.register
+        self.stop_browser()
+        self.stop_register()
 
-    def run_browser(self):
+    def browser(self):
         """
         Routine for browsing the network for matching clients of type "regtype"
         """
@@ -120,7 +214,7 @@ class bonjour():
         self.debug("Browser Service Started")
         try:
             try:
-                while self._isRunning:
+                while self._isBrowserRunning:
                     ready = select.select([browse_sdRef],[],[],self.timeout)
                     if browse_sdRef in ready[0]:
                         pybonjour.DNSServiceProcessResult(browse_sdRef)
@@ -131,7 +225,7 @@ class bonjour():
             browse_sdRef.close()
             self.debug("Browser Service Stopped")
 
-    def run_register(self):
+    def register(self):
         """
         Register a service on the network for type "regtype"
         """
@@ -142,7 +236,7 @@ class bonjour():
         self.debug("Registration Service Started")
         try:
             try:
-                while self._isRunning:
+                while self._isRegisterRunning:
                     ready = select.select([reg_sdRef],[],[],self.timeout)
                     if reg_sdRef in ready[0]:
                         pybonjour.DNSServiceProcessResult(reg_sdRef)
@@ -170,7 +264,6 @@ class bonjour():
         if errorCode == pybonjour.kDNSServiceErr_NoError:
             if not fullname.endswith(u'.'):
                 fullname += u'.'
-            print "Query Fullname %s"%(fullname.decode('utf-8'))
             with self.clientLock:
                 if self.clients.has_key(fullname.decode('utf-8')):
                     self.clients[fullname.decode('utf-8')]["ip"] = socket.inet_ntoa(rdata)
@@ -178,6 +271,20 @@ class bonjour():
                     self.debug("Client not found")
             self.queried.append(True)
 
+    def removed_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
+                         hosttarget, port, txtRecord):
+        """
+        Callback for resolving hosts that have been detected through the browse 
+        routine.
+        """
+        if errorCode == pybonjour.kDNSServiceErr_NoError:
+            print "removed %s"%fullname
+
+        with self.clientLock:
+            if self.clients.has_key(hosttarget.decode('utf-8')):
+                del self.clients[hosttarget.decode('utf-8')]
+
+   
     def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
                          hosttarget, port, txtRecord):
         """
@@ -185,7 +292,6 @@ class bonjour():
         routine.
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
-            print "Resolved fullname %s"%hosttarget.decode('utf-8')
             if self.fullname == fullname:
                 localhost = True
                 self.debug("Resolved Self")
@@ -225,7 +331,24 @@ class bonjour():
         if errorCode != pybonjour.kDNSServiceErr_NoError:
             return
         if not (flags & pybonjour.kDNSServiceFlagsAdd):
-            self.debug("Service Removed")
+            self.error("Service Removed %s"%(serviceName))
+            resolve_sdRef = pybonjour.DNSServiceResolve(0,
+                                                        interfaceIndex,
+                                                        serviceName,
+                                                        regtype,
+                                                        replyDomain,
+                                                        self.removed_callback)
+            try:
+                while not self.resolved:
+                    ready = select.select([resolve_sdRef],[],[],self.timeout)
+                    if resolve_sdRef not in ready[0]:
+                        self.error("Remove resolve timed out")
+                        break
+                    pybonjour.DNSServiceProcessResult(resolve_sdRef)
+                else:
+                    self.resolved.pop()
+            finally:
+                resolve_sdRef.close()
             return
 
         self.debug("Service Added, Resolving")
@@ -286,8 +409,7 @@ def main(argv, stdout):
     try:
         while True:
             time.sleep(5)
-            with osc_bonjour.clientLock:
-                print osc_bonjour.clients
+            print osc_bonjour.getClients()
             pass
     except KeyboardInterrupt:
         osc_bonjour.shutdown()

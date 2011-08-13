@@ -13,6 +13,9 @@
   <rosdep name="libavahi-compat-libdnssd" />
   <rosdep name="pybonjour" />
   <rosdep name="pyliblo" />
+  <export>
+      <rosdoc config="rosdoc.yaml"/>
+  </export>
 </package>
 
 
