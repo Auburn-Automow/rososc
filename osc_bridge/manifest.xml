@@ -9,6 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/osc_bridge</url>
   <depend package="rospy" />
+  <depend package="osc_msgs" />
 
   <rosdep name="libavahi-compat-libdnssd" />
   <rosdep name="pybonjour" />

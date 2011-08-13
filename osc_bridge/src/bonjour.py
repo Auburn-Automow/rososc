@@ -274,15 +274,13 @@ class bonjour():
     def removed_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
                          hosttarget, port, txtRecord):
         """
-        Callback for resolving hosts that have been detected through the browse 
+        Callback for removing hosts that have been detected through the browse 
         routine.
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
-            print "removed %s"%fullname
-
-        with self.clientLock:
-            if self.clients.has_key(hosttarget.decode('utf-8')):
-                del self.clients[hosttarget.decode('utf-8')]
+            with self.clientLock:
+                if self.clients.has_key(hosttarget.decode('utf-8')):
+                    del self.clients[hosttarget.decode('utf-8')]
 
    
     def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
@@ -331,7 +329,7 @@ class bonjour():
         if errorCode != pybonjour.kDNSServiceErr_NoError:
             return
         if not (flags & pybonjour.kDNSServiceFlagsAdd):
-            self.error("Service Removed %s"%(serviceName))
+            self.debug("Service Removed %s"%(serviceName))
             resolve_sdRef = pybonjour.DNSServiceResolve(0,
                                                         interfaceIndex,
                                                         serviceName,
