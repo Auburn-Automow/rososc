@@ -1,11 +1,21 @@
 #!/usr/bin/env python
+
+"""
+
+Python helper class for interfacing with Bonjour.
+
+bonjour.py provides a simple way of advertising a service on a known registration
+type and then also browses the current network to find clients of the same 
+registration type.
+
+"""
+
 __author__ = 'Michael Carroll <carroll.michael@gmail.com>'
 
 import pybonjour
 import select
 import socket
 import threading
-import time
 
 def defaultDebugMsgCallback(msg):
     """
@@ -30,12 +40,22 @@ def defaultErrorMsgCallback(msg):
 
 
 class bonjour():
-    timeout = 5
-    queried = []
-    resolved = []
-    _isRunning = False 
-
     def __init__(self,name,port,regtype='_osc._udp'):
+        """
+        Initialize a Bonjour object.  
+
+            name:
+                Name of the service to be advertised, must be UTF-8 string
+            port:
+                Port of the advertised service.  This is the port that clients will
+                connect to.
+            regtype:
+                An mDNS-compliant registration type. The service type followed by 
+                the protocol, separated by a dot (e.g. "_osc._udp").  A list of 
+                service types is available at:
+                <http://www.dns-sd.org/ServiceTypes.html>
+        """
+
         self.debug = defaultDebugMsgCallback;
         self.info = defaultInfoMsgCallback;
         self.error = defaultErrorMsgCallback;
@@ -43,8 +63,16 @@ class bonjour():
         self.name = name
         self.port = port
         self.regtype = regtype
+
+        self.timeout = 5
+        self.queried = []
+        self.resolved = [] 
+        self._isRunning = False
         
     def run(self):
+        """
+        Spawn the worker threads for registration and browsing
+        """
         self._isRunning = True
         self.browser = threading.Thread(target=self.run_browser)
         self.register = threading.Thread(target=self.run_register)
@@ -53,6 +81,9 @@ class bonjour():
         self.register.start()
 
     def shutdown(self):
+        """
+        Stop the worker threads for registration and browsing
+        """
         self._isRunning = False
         self.browser.join()
         self.register.join()
@@ -65,7 +96,7 @@ class bonjour():
         try:
             try:
                 while self._isRunning:
-                    ready = select.select([browse_sdRef],[],[])
+                    ready = select.select([browse_sdRef],[],[],self.timeout)
                     if browse_sdRef in ready[0]:
                         pybonjour.DNSServiceProcessResult(browse_sdRef)
             except Exception: 
@@ -84,7 +115,7 @@ class bonjour():
         try:
             try:
                 while self._isRunning:
-                    ready = select.select([reg_sdRef],[],[])
+                    ready = select.select([reg_sdRef],[],[],self.timeout)
                     if reg_sdRef in ready[0]:
                         pybonjour.DNSServiceProcessResult(reg_sdRef)
             except Exception:
@@ -101,12 +132,20 @@ class bonjour():
 
     def query_record_callback(self, sdRef, flags, interfaceIndex, errorCode,
                               fullname, rrtype, rrclass, rdata, ttl):
+        """
+        Callback for querying hosts IP addresses that come from the resolution
+        routine
+        """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
             self.info(" IP = %s"%(socket.inet_ntoa(rdata)))
             self.queried.append(True)
 
     def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
                          hosttarget, port, txtRecord):
+        """
+        Callback for resolving hosts that have been detected through the browse 
+        routine.
+        """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
             self.info("Resolved Service:")
             query_sdRef = \
@@ -163,4 +202,12 @@ class bonjour():
 if __name__ == "__main__":
     osc_bonjour = bonjour("Test Service",1234)
     osc_bonjour.run()
+
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        osc_bonjour.shutdown()
+    
+
 
