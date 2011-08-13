@@ -17,6 +17,7 @@ import select
 import socket
 import threading
 
+
 def defaultDebugMsgCallback(msg):
     """
     Default handler for bonjour.debug.  Can be overridden with the logging facility 
@@ -38,9 +39,20 @@ def defaultErrorMsgCallback(msg):
     """
     print "Bonjour Error: ", msg
 
+def quietHandler(msg):
+    """
+    Used to silence command line output.
+    """
+    return
 
 class bonjour():
-    def __init__(self,name,port,regtype='_osc._udp'):
+    """
+    Bonjour class
+
+    Wraps the pybonjour package to provide a simplified interface for registration
+    and browsing/resolving similar clients on the network
+    """
+    def __init__(self,name="Test",port=1234,regtype='_osc._udp'):
         """
         Initialize a Bonjour object.  
 
@@ -61,13 +73,20 @@ class bonjour():
         self.error = defaultErrorMsgCallback;
 
         self.name = name
-        self.port = port
+        self.port = int(port)
         self.regtype = regtype
+        self.domain = "local"
+        self.fullname = pybonjour.DNSServiceConstructFullName(self.name,
+                                                              self.regtype,
+                                                              'local.')
+        if not self.fullname.endswith(u'.'):
+            self.fullname += u'.'
 
-        self.timeout = 5
+        self.timeout = 2
         self.queried = []
         self.resolved = [] 
         self._isRunning = False
+        self.clients = dict()
         
     def run(self):
         """
@@ -90,6 +109,9 @@ class bonjour():
         del self.browser, self.register
 
     def run_browser(self):
+        """
+        Routine for browsing the network for matching clients of type "regtype"
+        """
         browse_sdRef = pybonjour.DNSServiceBrowse(regtype = self.regtype,
                                                        callBack = self.browse_callback)
         self.debug("Browser Service Started")
@@ -107,6 +129,9 @@ class bonjour():
             self.debug("Browser Service Stopped")
 
     def run_register(self):
+        """
+        Register a service on the network for type "regtype"
+        """
         reg_sdRef = pybonjour.DNSServiceRegister(name = self.name,
                                                 regtype = self.regtype,
                                                 port = self.port,
@@ -127,8 +152,11 @@ class bonjour():
 
 
     def register_callback(self, sdRef, flags, errorCode, name, regtype, domain):
+        """
+        Callback used by the run_regsiter routine.
+        """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
-            self.info("Registered: %s"%(regtype))
+            self.info("Bonjour Service Registered at %s"%(self.fullname))
 
     def query_record_callback(self, sdRef, flags, interfaceIndex, errorCode,
                               fullname, rrtype, rrclass, rdata, ttl):
@@ -137,7 +165,7 @@ class bonjour():
         routine
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
-            self.info(" IP = %s"%(socket.inet_ntoa(rdata)))
+            self.debug(" IP = %s"%(socket.inet_ntoa(rdata)))
             self.queried.append(True)
 
     def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
@@ -147,7 +175,10 @@ class bonjour():
         routine.
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
-            self.info("Resolved Service:")
+            if self.fullname == fullname:
+                self.debug("Resolved Self")
+                return
+
             query_sdRef = \
                     pybonjour.DNSServiceQueryRecord(interfaceIndex = interfaceIndex,
                                                     fullname = hosttarget,
@@ -158,7 +189,7 @@ class bonjour():
                 while not self.queried:
                     ready = select.select([query_sdRef],[],[],self.timeout)
                     if query_sdRef not in ready[0]:
-                        self.info("Query record timed out")
+                        self.error("Query record timed out")
                         break
                     pybonjour.DNSServiceProcessResult(query_sdRef)
                 else:
@@ -172,13 +203,16 @@ class bonjour():
 
     def browse_callback(self, sdRef, flags, interfaceIndex, errorCode, serviceName,
                         regtype, replyDomain):
+        """
+        Callback for browsing hosts of type "regtype" on the network.
+        """
         if errorCode != pybonjour.kDNSServiceErr_NoError:
             return
         if not (flags & pybonjour.kDNSServiceFlagsAdd):
-            self.info("Service Removed")
+            self.debug("Service Removed")
             return
 
-        self.info("Service Added, Resolving")
+        self.debug("Service Added, Resolving")
 
         resolve_sdRef = pybonjour.DNSServiceResolve(0,
                                                     interfaceIndex,
@@ -191,7 +225,7 @@ class bonjour():
             while not self.resolved:
                 ready = select.select([resolve_sdRef],[],[],self.timeout)
                 if resolve_sdRef not in ready[0]:
-                    self.info("Resolve timed out")
+                    self.error("Resolve timed out")
                     break
                 pybonjour.DNSServiceProcessResult(resolve_sdRef)
             else:
@@ -199,12 +233,48 @@ class bonjour():
         finally:
             resolve_sdRef.close()
 
-if __name__ == "__main__":
-    osc_bonjour = bonjour("Test Service",1234)
-    osc_bonjour.run()
 
+def main(argv, stdout):
+    """
+    Main function for when the script gets called on the command line.  Takes a 
+    series of command line arguments and then starts a registration service.
+
+    Mainly for debugging purposes.
+    """
+    parser = OptionParser()
+    parser.add_option("-p","--port",action="store",type="int", dest="port",
+            default=1234,
+            help="Port of the service advertised on Bonjour")
+    parser.add_option("-n","--name",action="store",type="string", dest="name",
+            default="Test Bonjour Service",
+            help="Name of the service advertised on Bonjour")
+    parser.add_option("-r","--regtype",action="store",type="string",dest="regtype",
+            default="_osc._udp",
+            help="Registration type of the service advertised on Bonjour")
+    parser.add_option("-v",action="count", dest="verbosity",
+            help="Set verbosity level, up to -vv")
+    (options, args) = parser.parse_args(argv)
+
+    osc_bonjour = bonjour(name=options.name,
+                          port=options.port,
+                          regtype=options.regtype)
+    # Set up the verbosity levels
+    if options.verbosity == None:
+        osc_bonjour.info = quietHandler
+        osc_bonjour.debug = quietHandler
+    elif options.verbosity == 1:
+        osc_bonjour.debug = quietHandler
+
+    osc_bonjour.run()
     try:
         while True:
             pass
     except KeyboardInterrupt:
         osc_bonjour.shutdown()
+        sys.exit(0)
+
+if __name__ == "__main__":
+    import sys
+    from optparse import OptionParser
+
+    main(sys.argv,sys.stdout)
