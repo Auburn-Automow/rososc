@@ -76,6 +76,8 @@ class bonjour():
         self.port = int(port)
         self.regtype = regtype
         self.domain = "local"
+        self.txtrecord = pybonjour.TXTRecord()
+        self.txtrecord['Service'] = 'ROS OSC Service'
         self.fullname = pybonjour.DNSServiceConstructFullName(self.name,
                                                               self.regtype,
                                                               'local.')
@@ -87,6 +89,7 @@ class bonjour():
         self.resolved = [] 
         self._isRunning = False
         self.clients = dict()
+        self.clientLock = threading.Lock()
         
     def run(self):
         """
@@ -165,7 +168,14 @@ class bonjour():
         routine
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
-            self.debug(" IP = %s"%(socket.inet_ntoa(rdata)))
+            if not fullname.endswith(u'.'):
+                fullname += u'.'
+            print "Query Fullname %s"%(fullname.decode('utf-8'))
+            with self.clientLock:
+                if self.clients.has_key(fullname.decode('utf-8')):
+                    self.clients[fullname.decode('utf-8')]["ip"] = socket.inet_ntoa(rdata)
+                else:
+                    self.debug("Client not found")
             self.queried.append(True)
 
     def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
@@ -175,9 +185,15 @@ class bonjour():
         routine.
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
+            print "Resolved fullname %s"%hosttarget.decode('utf-8')
             if self.fullname == fullname:
+                localhost = True
                 self.debug("Resolved Self")
-                return
+            else:
+                localhost = False
+            with self.clientLock:
+                if not self.clients.has_key(hosttarget.decode('utf-8')) and not localhost:
+                    self.clients[hosttarget.decode('utf-8')] = {"port":port}
 
             query_sdRef = \
                     pybonjour.DNSServiceQueryRecord(interfaceIndex = interfaceIndex,
@@ -266,8 +282,12 @@ def main(argv, stdout):
         osc_bonjour.debug = quietHandler
 
     osc_bonjour.run()
+    import time
     try:
         while True:
+            time.sleep(5)
+            with osc_bonjour.clientLock:
+                print osc_bonjour.clients
             pass
     except KeyboardInterrupt:
         osc_bonjour.shutdown()
