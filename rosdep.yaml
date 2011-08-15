@@ -7,7 +7,6 @@ pyliblo:
   ubuntu:
     apt:
       packages: [ python-liblo pyliblo-utils ]
-
 libavahi-compat-libdnssd:
   ubuntu: 
     apt:
