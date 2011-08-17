@@ -6,7 +6,7 @@ pybonjour:
 pyliblo:
   ubuntu:
     apt:
-      packages: [ python-liblo pyliblo-utils ]
+      packages: [ python-liblo, pyliblo-utils ]
 libavahi-compat-libdnssd:
   ubuntu: 
     apt:

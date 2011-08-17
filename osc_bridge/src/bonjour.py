@@ -17,40 +17,45 @@ import select
 import socket
 import threading
 import copy
+import sys
 from types import *
 
 
-def defaultDebugMsgCallback(msg):
+def defaultDebugMsgCallback(msg,*args):
     """
     Default handler for bonjour.debug.  Can be overridden with the logging facility 
     of your choice
 
     @type msg: str
     @param msg: Message to be displayed as a debug message.
+    @param args: format-string arguments, if necessary
     """
-    print "Bonjour Debug: ", msg
+    sys.stdout.write("Bonjour Debug: %s\n"%(msg%args))
 
-def defaultInfoMsgCallback(msg):
+
+def defaultInfoMsgCallback(msg,*args):
     """
     Default handler for bonjour.info.  Can be overridden with the logging facility 
     of your choice
 
     @type msg: str
     @param msg: Message to be displayed as an info message.
+    @param args: format-string arguments, if necessary
     """
-    print "Bonjour Info: ", msg
+    sys.stdout.write("Bonjour Info: %s\n"%(msg%args))
 
-def defaultErrorMsgCallback(msg):
+def defaultErrorMsgCallback(msg,*args):
     """
     Default handler for bonjour.error.  Can be overridden with the logging facility 
     of your choice
 
     @type msg: str
     @param msg: Message to be displayed as an error message.
+    @param args: format-string arguments, if necessary
     """
-    print "Bonjour Error: ", msg
+    sys.stderr.write("Bonjour Error: %s\n"%(msg%args))
 
-def quietHandler(msg):
+def quietHandler(msg,*args):
     """
     Can be used as a message handler to silence command line output.
 
@@ -117,7 +122,7 @@ class bonjour():
         Set the debug logging handler
 
         @type logFunction: function 
-        @param logFunction: Logging function handler of prototype f(msg)
+        @param logFunction: Logging function handler 
         """
         assert type(logFunction) is FunctionType,\
             "Cannot override logger, %s is not of type function"%logFunction
@@ -128,7 +133,7 @@ class bonjour():
         Set the info logging handler
 
         @type logFunction: function 
-        @param logFunction: Logging function handler of prototype f(msg)
+        @param logFunction: Logging function handler
         """
         assert type(logFunction) is FunctionType,\
             "Cannot override logger, %s is not of type function"%logFunction
@@ -139,7 +144,7 @@ class bonjour():
         Set the error logging handler
 
         @type logFunction: function 
-        @param logFunction: Logging function handler of prototype f(msg)
+        @param logFunction: Logging function handler
         """
         assert type(logFunction) is FunctionType,\
                 "Cannot override logger, %s is not of type function"%logFunction
