@@ -1,0 +1,96 @@
+#!/usr/bin/env python
+
+# -*- coding: utf-8 -*-
+# merge_layouts
+#
+# Copyright (c) 2011, Michael Carroll
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+# * Neither the name of the copyright holders nor the names of any
+#   contributors may be used to endorse or promote products derived
+#   from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+__author__ = "Michael Carroll <carroll.michael@gmail.com>"
+
+import sys
+from zipfile import ZipFile
+from lxml import etree
+from StringIO import StringIO
+import os
+import base64
+
+
+class TouchOSCLayout():
+    """
+    docstring for TouchOSCLayout
+    """
+    def __init__(self, filename, etree):
+        self.name = filename
+        self.layout = etree 
+        return
+    
+    def getNumOfTabpages(self):
+        return len(self.layout.findall("tabpage"))
+
+    def getVersion(self):
+        return self.layout.getroot().attrib['version']
+
+    def getMode(self):
+        return self.layout.getroot().attrib['mode']
+
+    def getOrientation(self):
+        return self.layout.getroot().attrib['orientation']
+
+    def __str__(self):
+        msg = 'TouchOSC Layout:   %s\n'%self.name
+        msg+= '  Version:         %s\n'%self.getVersion()
+        msg+= '  Mode:            %s\n'%self.getMode()
+        msg+= '  Orientation:     %s\n'%self.getOrientation()
+        msg+= '  Number of Pages: %s\n'%self.getNumOfTabpages()
+        for element in self.layout.findall("tabpage"):
+            msg+= '    Page:      %s\n'%base64.b64decode(element.attrib['name'])
+        return msg
+
+        
+
+def main(argv, stdout):
+    usage = "usage %prog [options] layout1 ... layoutN output.touchosc" 
+    parser = OptionParser(usage=usage)
+    (options,args) = parser.parse_args(argv)
+
+    layoutParser = etree.XMLParser(remove_blank_text=True)
+
+    layouts = [] 
+    for path in args[1:len(args)-1]:
+        try:
+            f = ZipFile(path,"r")
+            layouts.append( \
+                    TouchOSCLayout(os.path.basename(path),
+                    etree.parse(StringIO(f.read("index.xml")),layoutParser)))
+        except IOError:
+            parser.error("Invalid layout file: %s"%path)
+            sys.exit(1)
+
+if __name__ == '__main__':
+    from optparse import OptionParser
+    main(sys.argv,sys.stdout)

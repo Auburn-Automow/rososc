@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # -*- coding: utf-8 -*-
-# layout_sync.py
+# layout_sync
 #
 # Copyright (c) 2011, Michael Carroll
 # All rights reserved.
@@ -45,7 +45,7 @@ editor.  The editor regsiters a bonjour service of type _touchosc._tcp and then
 
 __author__ = "Michael Carroll <carroll.michael@gmail.com>"
 
-import roslib; roslib.load_manifest('osc_utils')
+import roslib; roslib.load_manifest('touchosc_utils')
 import bonjour
 
 import sys
@@ -85,7 +85,7 @@ def make_layoutHandler_class(layoutFile):
                 self.wfile.write(f.read("index.xml"))
             except Exception:
                 import traceback
-                traceback.print_exc(f=sys.stdout)
+                traceback.print_exc(f=sys.stdout)   
             return
     return LayoutHTTPRequestHandler
 
