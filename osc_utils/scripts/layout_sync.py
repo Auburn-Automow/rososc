@@ -54,28 +54,6 @@ import zipfile
 import os
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
-def defaultError(msg,*args):
-    """
-    Default handler for error messages.  Can be overridden with the logging facility
-    of your choice
-
-    @type msg: str
-    @param msg: Message to be displayed as an error message.
-    @param args: format-string arguments, if necessary
-    """
-    sys.stderr.write("Layout Server Error: %s\n"%(msg%args))
-
-def defaultInfo(msg,*args):
-    """
-    Default handler for messages.  Can be overridden with the logging facility of
-    your choice.
-
-    @type msg: str
-    @param msg: Message to be displayed as a message.
-    @param args: format-string arguments, if necessary
-    """
-    sys.stdout.write("Layout Server Info: %s\n"%(msg%args))
-
 def make_layoutHandler_class(layoutFile):
     """
     Function to generate a class that extends BaseHTTPRequest Handler.
@@ -110,13 +88,6 @@ def make_layoutHandler_class(layoutFile):
                 traceback.print_exc(f=sys.stdout)
             return
     return LayoutHTTPRequestHandler
-
-class LayoutServer():
-    """docstring for LayoutServer"""
-    def __init__(self, arg):
-        super(LayoutServer, self).__init__()
-        self.arg = arg
-        
 
 def main(argv, stdout):
     usage = "usage: %prog [options] /path/to/layout.touchosc"
