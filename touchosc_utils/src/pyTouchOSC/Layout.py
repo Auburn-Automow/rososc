@@ -37,44 +37,84 @@ import base64
 import os
 from StringIO import StringIO
 
+
 class Layout(object):
     """
     docstring
     """
-    def __init__(self, version=10, mode='iPad', orientation='horizontal'):
-        self._layout = etree.Element("layout")
-        self._layout.attrib['version'] = str(version)
-        self._layout.attrib['mode'] = str(1) if 'iPad' else str(0)
-        self._layout.attrib['orientation'] = orientation
-        return
+    
+    # These dictionaries are probably largely unnecessary, but I'm putting them in
+    # just in case Hexler decides to do a massive update at some point in the
+    # future
+
+    #: Dictionary of TouchOSC versions
+    VERSION = {
+            "current":str(10).encode('utf-8'),      # Tracks current TouchOSC
+            10:str(10).encode('utf-8'),             # TouchOSC 1.7.3
+            8:str(8).encode('utf-8')                # < 1.7.3
+            }
+
+    #: Dictionary of "modes", or target devices
+    MODE = {
+            "iPhone":str(0).encode('utf-8'),
+            "iPad":str(1).encode('utf-8'),
+            0:str(0).encode('utf-8'),
+            1:str(1).encode('utf-8')
+            }
+
+    #: Dictionary of orientations
+    ORIENTATION = {
+            "horizontal":"horizontal".encode('utf-8'),
+            "vertical":"vertical".encode('utf-8')
+            }
+
+    def __init__(self, tree):
+        """
+        Constructor for Layout
+
+        @type tree: etree.ElementTree
+        @param tree: ElementTree for the layout object to be instantiated 
+        
+        """
+        self._layout = tree
+        self._layoutRoot = tree.getroot()
 
     @apply
     def version():
         doc="""docstring"""
         def fget(self):
-            return self._layout.attrib['version']
+            return self._layoutRoot.attrib['version']
         def fset(self, value):
-            self._layout.attrib['version'] = str(value).encode('utf-8')
+            self._layoutRoot.attrib['version'] = str(value).encode('utf-8')
         return property(**locals())
 
     @apply
     def mode():
         doc="""docstring"""
         def fget(self):
-            return self._layout.attrib['mode']
+            return self._layoutRoot.attrib['mode']
         def fset(self,value):
-            self._layout.attrib['mode'] = str(value).encode('utf-8')
+            self._layoutRoot.attrib['mode'] = str(value).encode('utf-8')
+        return property(**locals())
+
+    @apply
+    def orientation():
+        doc="""docstring"""
+        def fget(self):
+            return self._layoutRoot.attrib['orientation']
+        def fset(self,value):
+            self._layoutRoot.attrib['orientation'] = str(value).encode('utf-8')
         return property(**locals())
 
     @classmethod
-    def createFromExisting(source):
+    def createFromExisting(cls,source):
         """
         Create a TouchOSCLayout instance from an existing TouchOSC Layout.
 
         @type source: filename or fileobject 
         @param source: Path to an existing .touchosc file, or fileobject containing
             the layout XML data.
-        @rtype: TouchOSCLayout
+        @rtype: Layout 
         @return: An instance containing the layout 
         """
         layoutParser = etree.XMLParser(remove_blank_text=True)
@@ -90,7 +130,35 @@ class Layout(object):
                 layoutTree = etree.parse(source,layoutParser)
             except:
                 pass
-        
-
         pass
 
+    @classmethod
+    def createEmpty(cls,version=VERSION["current"], 
+                mode=MODE['iPad'], 
+                orientation=ORIENTATION['horizontal']):
+        """
+        Create an empty Layout instance.
+
+        A minimum layout must include a version, a mode, and an orientation.
+
+        @type version: str
+        @param version: One of the versions from Layout.VERSION.  It is generally 
+            advisable to use VERSION["current"]
+        @type mode: str
+        @param mode: One of the modes from Layout.MODE.  Available modes are 
+            currently "iPad" and "iPhone".
+        @type orientation: str
+        @param orientation: One of the orientations from Layout.ORIENTATION.  
+            Available orientations are "horizontal" and "vertical"
+        @rtype: Layout
+        @return: An instance of the Layout class 
+        """
+        layoutTag = etree.Element("layout")
+        layoutTag.attrib["version"] = version
+        layoutTag.attrib["mode"] = mode
+        layoutTag.attrib["orientation"] = orientation
+
+        return Layout(etree.ElementTree(layoutTag))
+
+
+    
