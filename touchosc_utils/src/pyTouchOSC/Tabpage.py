@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# TouchOSCTabpage.py
+# Tabpage.py
 #
 # Copyright (c) 2011, Michael Carroll
 # All rights reserved.
@@ -31,9 +31,9 @@
 __author__ = "Michael Carroll <carroll.michael@gmail.com>"
 __version__ = "1.7.3"
 
-class TouchOSCTabpage(object):
+class Tabpage(object):
     """
-    docstring for TouchOSCTabpage
+    docstring
     """
     def __init__(self, arg):
        return

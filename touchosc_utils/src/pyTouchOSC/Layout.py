@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# TouchOSCLayout.py
+# Layout.py
 #
 # Copyright (c) 2011, Michael Carroll
 # All rights reserved.
@@ -37,9 +37,9 @@ import base64
 import os
 from StringIO import StringIO
 
-class TouchOSCLayout(object):
+class Layout(object):
     """
-    docstring for TouchOSCLayout
+    docstring
     """
     def __init__(self, version=10, mode='iPad', orientation='horizontal'):
         self._layout = etree.Element("layout")
@@ -90,7 +90,6 @@ class TouchOSCLayout(object):
                 layoutTree = etree.parse(source,layoutParser)
             except:
                 pass
-        layout = TouchOSCLayout()
         
 
         pass
