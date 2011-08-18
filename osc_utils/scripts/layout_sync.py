@@ -31,28 +31,28 @@ def defaultInfo(msg,*args):
     """
     sys.stdout.write("Layout Server Info: %s\n"%(msg%args))
 
-class layoutHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        global layoutFile
-        f = zipfile.ZipFile(layoutFile,"r")
-        try:
-            self.send_response(200)
-            self.send_header('Content-type','text/html')
-            self.send_header('Content-Disposition','filename=Simple.touchosc')
-            self.end_headers()
-            self.wfile.write(f.read("index.xml"))
-        except Exception:
-            import traceback
-            traceback.print_exc(f=sys.stdout)
-        return
-
+def make_layoutHandler_class(layoutFile):
+    class LayoutHTTPRequestHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            f = zipfile.ZipFile(layoutFile,"r")
+            print(f.read("index.xml"))
+            try:
+                self.send_response(200)
+                self.send_header('Content-type','application/touchosc')
+                self.send_header('Content-Disposition','attachment; filename="balls.touchosc"')
+                self.end_headers()
+                self.wfile.write(f.read("index.xml"))
+            except Exception:
+                import traceback
+                traceback.print_exc(f=sys.stdout)
+            return
+    return LayoutHTTPRequestHandler
 
 def main(argv, stdout):
-    global layoutFile
     usage = "usage: %prog [options] /path/to/layout.osc"
     parser = OptionParser(usage=usage)
     parser.add_option("-p","--port",action="store",type="int",dest="port",
-            default=8000,
+            default=9658,
             help="Port that the layout server will host on")
     parser.add_option("-n","--name",action="store",type="string",dest="name",
             default="OSC Layout Server on %s"%socket.gethostname(),
@@ -62,15 +62,16 @@ def main(argv, stdout):
 
     b = bonjour.bonjour(options.name,options.port,'_touchosceditor._tcp')
     b.run_register()
-    server = HTTPServer(('',options.port),layoutHandler)
-
-    layoutFile = args[1]
+    server = HTTPServer(('',options.port),make_layoutHandler_class(args[1]))
 
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        server.server_close()
-    b.stop_register()
+        pass
+    finally:
+        server.socket.close()
+        b.stop_register()
+
 
 
 if __name__ == '__main__':
