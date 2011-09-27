@@ -1,0 +1,14 @@
+<package>
+  <description brief="rososc_tutorials">
+
+     rososc_tutorials
+
+  </description>
+  <author>Michael Carroll</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/rososc_tutorials</url>
+
+</package>
+
+
