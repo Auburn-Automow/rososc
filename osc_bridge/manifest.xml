@@ -10,9 +10,10 @@
   <url>http://ros.org/wiki/osc_bridge</url>
   <depend package="rospy" />
   <depend package="osc_msgs" />
+  <depend package="touchosc_utils"/>
 
   <rosdep name="pybonjour" />
-  <rosdep name="pyliblo" />
+  <rosdep name="txosc" />
   <export>
       <rosdoc config="rosdoc.yaml"/>
   </export>

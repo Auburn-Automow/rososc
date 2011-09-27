@@ -3,10 +3,18 @@ pybonjour:
     pip:
       packages: [ pybonjour ]
       depends: [ libavahi-compat-libdnssd ] 
-pyliblo:
+  osx:
+    lion:
+      pip:
+        packages: [ pybonjour ]
+txosc:
   ubuntu:
-    apt:
-      packages: [ python-liblo, pyliblo-utils ]
+    pip:
+      packages: [ txosc ]
+  osx:
+    lion:
+      pip:
+        packages: [ txosc ]
 libavahi-compat-libdnssd:
   ubuntu: 
     apt:
