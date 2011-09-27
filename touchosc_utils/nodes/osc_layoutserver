@@ -42,13 +42,18 @@ if __name__ == '__main__':
 
     name = rospy.get_param('~name','OSC Server')
     port = int(rospy.get_param('~port','9658'))
-    path = rospy.get_param('~layout_path','')
+    path = rospy.get_param('~layout_path',
+            '/Users/mjcarroll/ros/mcarroll-ros-pkg/rososc/rososc_tutorials/layouts/ROS-Demo-iPad.touchosc')
+
 
     server = LayoutServer(path,name,port)
     server.run()
 
+    print "Server running"
+
     while True:
         if rospy.is_shutdown():
             server.stop()
+            print "stopping server"
             break
         rospy.spin()

@@ -35,9 +35,11 @@ import sys
 import socket
 import zipfile
 import os
+import threading
+import time
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
-def make_layoutHandler_class(layoutName,layoutFile):
+def make_layoutHandler_class(layoutName, layoutFile):
     """
     Function to generate a class that extends BaseHTTPRequest Handler.
 
@@ -60,9 +62,9 @@ def make_layoutHandler_class(layoutName,layoutFile):
         def do_GET(self):
             try:
                 self.send_response(200)
-                self.send_header('Content-type','application/touchosc')
+                self.send_header('Content-type', 'application/touchosc')
                 self.send_header('Content-Disposition',
-                                 'attachment; filename="%s"'%layoutName)
+                                 'attachment; filename="%s"' % layoutName)
                 self.end_headers()
                 self.wfile.write(layoutFile)
             except Exception:
@@ -71,8 +73,24 @@ def make_layoutHandler_class(layoutName,layoutFile):
             return
     return LayoutHTTPRequestHandler
 
+class StoppableHTTPServer(HTTPServer):
+    stopped = False
+    def __init__(self, *args, **kw):
+        HTTPServer.__init__(self,*args,**kw)
+    
+    def serve_forever(self):
+        while not self.stopped:
+            self.handle_request()
+            
+    def server_close(self):
+        HTTPServer.server_close(self)
+        self.stopped = True
+        
+    def shutdown(self):
+        pass
+
 class LayoutServer(object):
-    def __init__(self,layoutPath,name,port):
+    def __init__(self, layoutPath, name, port):
         """
         LayoutServer - IO class for sending TouchOSC layouts to iPhones and iPads.
         
@@ -84,35 +102,42 @@ class LayoutServer(object):
         @param port: Port number to host the layout file on. 
         """
         if not os.path.lexists(layoutPath):
-            raise ValueError("Layout file not found: %s"%layoutPath)
-        layoutZip = zipfile.ZipFile(layoutPath,"r")
+            raise ValueError("Layout file not found: %s" % layoutPath)
+        layoutZip = zipfile.ZipFile(layoutPath, "r")
         layoutFile = layoutZip.read("index.xml")
         layoutName = os.path.basename(layoutPath)
-        self.bonjourServer = bonjour.Bonjour(name,port,
+        self.bonjourServer = bonjour.Bonjour(name, port,
                                              '_touchosceditor._tcp')
-        self.httpServer = HTTPServer(('',port),
+        self.httpd = StoppableHTTPServer(('', port),
                                      make_layoutHandler_class(layoutName,
                                                               layoutFile))
 
     def run(self):
         self.bonjourServer.run_register()
-        self.httpServer.serve_forever()
+        self.t = threading.Thread(target=self._run_http)
+        self.t.start()
     
     def stop(self):
-        self.httpServer.socket.close()
         self.bonjourServer.stop_register()
-        pass
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        
+    def _run_http(self, ):
+        try:
+            self.httpd.serve_forever()
+        except:
+            pass
 
-def main(argv,stdout):
+def main(argv, stdout):
     usage = "usage: %prog [options] /path/to/layout.touchosc"
     parser = OptionParser(usage=usage)
-    parser.add_option("-p","--port",action="store",type="int",dest="port",
+    parser.add_option("-p", "--port", action="store", type="int", dest="port",
             default=9658,
             help="Port that the layout server will host on.")
-    parser.add_option("-n","--name",action="store",type="string",dest="name",
-            default="OSC Layout Server on %s"%socket.gethostname(),
+    parser.add_option("-n", "--name", action="store", type="string", dest="name",
+            default="OSC Layout Server on %s" % socket.gethostname(),
             help="Name that will appear in TouchOSC's Server List")
-    (options,args) = parser.parse_args(argv)
+    (options, args) = parser.parse_args(argv)
     if len(args) < 2:
         parser.error("Please specify a layout file.")
         sys.exit(1)
@@ -121,7 +146,7 @@ def main(argv,stdout):
     # Attempt to instantiate the server class.  Returns a ValueError if the
     # layoutFilePath is incorrect    
     try:
-        server = LayoutServer(layoutFilePath,options.name,options.port)
+        server = LayoutServer(layoutFilePath, options.name, options.port)
     except ValueError as e:
         parser.error(e.message)
         sys.exit(1)
@@ -129,6 +154,8 @@ def main(argv,stdout):
     # Run the server and stop it on a keyboard interrupt.
     try:
         server.run()
+        while True:
+            time.sleep(0.5)
     except KeyboardInterrupt:
         pass
     finally:

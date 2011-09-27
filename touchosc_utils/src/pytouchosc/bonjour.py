@@ -51,7 +51,7 @@ import sys
 from types import *
 
 
-def defaultDebugMsgCallback(msg,*args):
+def defaultDebugMsgCallback(msg, *args):
     """
     Default handler for bonjour.debug.  Can be overridden with the logging facility 
     of your choice
@@ -60,10 +60,10 @@ def defaultDebugMsgCallback(msg,*args):
     @param msg: Message to be displayed as a debug message.
     @param args: format-string arguments, if necessary
     """
-    sys.stdout.write("Bonjour Debug: %s\n"%(msg%args))
+    sys.stdout.write("Bonjour Debug: %s\n" % (msg % args))
 
 
-def defaultInfoMsgCallback(msg,*args):
+def defaultInfoMsgCallback(msg, *args):
     """
     Default handler for bonjour.info.  Can be overridden with the logging facility 
     of your choice
@@ -72,9 +72,9 @@ def defaultInfoMsgCallback(msg,*args):
     @param msg: Message to be displayed as an info message.
     @param args: format-string arguments, if necessary
     """
-    sys.stdout.write("Bonjour Info: %s\n"%(msg%args))
+    sys.stdout.write("Bonjour Info: %s\n" % (msg % args))
 
-def defaultErrorMsgCallback(msg,*args):
+def defaultErrorMsgCallback(msg, *args):
     """
     Default handler for bonjour.error.  Can be overridden with the logging facility 
     of your choice
@@ -83,9 +83,9 @@ def defaultErrorMsgCallback(msg,*args):
     @param msg: Message to be displayed as an error message.
     @param args: format-string arguments, if necessary
     """
-    sys.stderr.write("Bonjour Error: %s\n"%(msg%args))
+    sys.stderr.write("Bonjour Error: %s\n" % (msg % args))
 
-def quietHandler(msg,*args):
+def quietHandler(msg, *args):
     """
     Can be used as a message handler to silence command line output.
 
@@ -100,7 +100,7 @@ class Bonjour():
     Bonjour service and browsing the network for services matching a certain 
     regtype.
     """
-    def __init__(self,name,port,regtype):
+    def __init__(self, name, port, regtype):
         """
         Initialize a Bonjour object.  
 
@@ -145,37 +145,37 @@ class Bonjour():
         #: Lock for modifying the dictionary of clients.
         self.clientLock = threading.Lock()
 
-    def setDebug(self,logFunction):
+    def setDebug(self, logFunction):
         """
         Set the debug logging handler
 
         @type logFunction: function 
         @param logFunction: Logging function handler 
         """
-        assert type(logFunction) is FunctionType,\
-            "Cannot override logger, %s is not of type function"%logFunction
+        assert type(logFunction) is FunctionType, \
+            "Cannot override logger, %s is not of type function" % logFunction
         self.debug = logFunction
 
-    def setInfo(self,logFunction):
+    def setInfo(self, logFunction):
         """
         Set the info logging handler
 
         @type logFunction: function 
         @param logFunction: Logging function handler
         """
-        assert type(logFunction) is FunctionType,\
-            "Cannot override logger, %s is not of type function"%logFunction
+        assert type(logFunction) is FunctionType, \
+            "Cannot override logger, %s is not of type function" % logFunction
         self.info = logFunction
 
-    def setError(self,logFunction):
+    def setError(self, logFunction):
         """
         Set the error logging handler
 
         @type logFunction: function 
         @param logFunction: Logging function handler
         """
-        assert type(logFunction) is FunctionType,\
-                "Cannot override logger, %s is not of type function"%logFunction
+        assert type(logFunction) is FunctionType, \
+                "Cannot override logger, %s is not of type function" % logFunction
         self.error = logFunction
 
     def getClients(self):
@@ -212,7 +212,7 @@ class Bonjour():
         """
         if not self._isRegisterRunning:
             self._isRegisterRunning = True
-            self.register_t= threading.Thread(target=self.register)
+            self.register_t = threading.Thread(target=self.register)
             self.register_t.start()
 
     def stop_register(self):
@@ -242,13 +242,13 @@ class Bonjour():
         """
         Routine for browsing the network for matching clients of type "regtype"
         """
-        browse_sdRef = pybonjour.DNSServiceBrowse(regtype = self.regtype,
-                                                       callBack = self.browse_callback)
+        browse_sdRef = pybonjour.DNSServiceBrowse(regtype=self.regtype,
+                                                       callBack=self.browse_callback)
         self.debug("Browser Service Started")
         try:
             try:
                 while self._isBrowserRunning:
-                    ready = select.select([browse_sdRef],[],[],self.timeout)
+                    ready = select.select([browse_sdRef], [], [], self.timeout)
                     if browse_sdRef in ready[0]:
                         pybonjour.DNSServiceProcessResult(browse_sdRef)
             except Exception: 
@@ -262,15 +262,15 @@ class Bonjour():
         """
         Register a service on the network for type "regtype"
         """
-        reg_sdRef = pybonjour.DNSServiceRegister(name = self.name,
-                                                regtype = self.regtype,
-                                                port = self.port,
-                                                callBack = self.register_callback)
+        reg_sdRef = pybonjour.DNSServiceRegister(name=self.name,
+                                                regtype=self.regtype,
+                                                port=self.port,
+                                                callBack=self.register_callback)
         self.debug("Registration Service Started")
         try:
             try:
                 while self._isRegisterRunning:
-                    ready = select.select([reg_sdRef],[],[],self.timeout)
+                    ready = select.select([reg_sdRef], [], [], self.timeout)
                     if reg_sdRef in ready[0]:
                         pybonjour.DNSServiceProcessResult(reg_sdRef)
             except Exception:
@@ -286,7 +286,7 @@ class Bonjour():
         Callback used by the run_regsiter routine.
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
-            self.info("Bonjour Service Registered at %s"%(self.fullname))
+            self.info("Bonjour Service Registered at %s" % (self.fullname))
 
     def query_record_callback(self, sdRef, flags, interfaceIndex, errorCode,
                               fullname, rrtype, rrclass, rdata, ttl):
@@ -333,14 +333,14 @@ class Bonjour():
                     self.clients[hosttarget.decode('utf-8')] = {"port":port}
 
             query_sdRef = \
-                    pybonjour.DNSServiceQueryRecord(interfaceIndex = interfaceIndex,
-                                                    fullname = hosttarget,
-                                                    rrtype = pybonjour.kDNSServiceType_A,
-                                                    callBack = self.query_record_callback)
+                    pybonjour.DNSServiceQueryRecord(interfaceIndex=interfaceIndex,
+                                                    fullname=hosttarget,
+                                                    rrtype=pybonjour.kDNSServiceType_A,
+                                                    callBack=self.query_record_callback)
 
             try:
                 while not self.queried:
-                    ready = select.select([query_sdRef],[],[],self.timeout)
+                    ready = select.select([query_sdRef], [], [], self.timeout)
                     if query_sdRef not in ready[0]:
                         self.error("Query record timed out")
                         break
@@ -352,7 +352,7 @@ class Bonjour():
 
             self.resolved.append(True)
         else:
-            self.error("Resolve failed with code: %s"%errorCode)
+            self.error("Resolve failed with code: %s" % errorCode)
 
     def browse_callback(self, sdRef, flags, interfaceIndex, errorCode, serviceName,
                         regtype, replyDomain):
@@ -362,7 +362,7 @@ class Bonjour():
         if errorCode != pybonjour.kDNSServiceErr_NoError:
             return
         if not (flags & pybonjour.kDNSServiceFlagsAdd):
-            self.debug("Service Removed %s"%(serviceName))
+            self.debug("Service Removed %s" % (serviceName))
             resolve_sdRef = pybonjour.DNSServiceResolve(0,
                                                         interfaceIndex,
                                                         serviceName,
@@ -371,7 +371,7 @@ class Bonjour():
                                                         self.removed_callback)
             try:
                 while not self.resolved:
-                    ready = select.select([resolve_sdRef],[],[],self.timeout)
+                    ready = select.select([resolve_sdRef], [], [], self.timeout)
                     if resolve_sdRef not in ready[0]:
                         self.error("Remove resolve timed out")
                         break
@@ -393,7 +393,7 @@ class Bonjour():
 
         try:
             while not self.resolved:
-                ready = select.select([resolve_sdRef],[],[],self.timeout)
+                ready = select.select([resolve_sdRef], [], [], self.timeout)
                 if resolve_sdRef not in ready[0]:
                     self.error("Resolve timed out")
                     break
@@ -412,16 +412,16 @@ def main(argv, stdout):
     Mainly for debugging purposes.
     """
     parser = OptionParser()
-    parser.add_option("-p","--port",action="store",type="int", dest="port",
+    parser.add_option("-p", "--port", action="store", type="int", dest="port",
             default=1234,
             help="Port of the service advertised on Bonjour")
-    parser.add_option("-n","--name",action="store",type="string", dest="name",
+    parser.add_option("-n", "--name", action="store", type="string", dest="name",
             default="Test Bonjour Service",
             help="Name of the service advertised on Bonjour")
-    parser.add_option("-r","--regtype",action="store",type="string",dest="regtype",
+    parser.add_option("-r", "--regtype", action="store", type="string", dest="regtype",
             default="_osc._udp",
             help="Registration type of the service advertised on Bonjour")
-    parser.add_option("-v",action="count", dest="verbosity",
+    parser.add_option("-v", action="count", dest="verbosity",
             help="Set verbosity level, up to -vv")
     (options, args) = parser.parse_args(argv)
 
@@ -450,4 +450,4 @@ if __name__ == "__main__":
     import sys
     from optparse import OptionParser
 
-    main(sys.argv,sys.stdout)
+    main(sys.argv, sys.stdout)

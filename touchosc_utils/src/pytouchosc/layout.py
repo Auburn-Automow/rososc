@@ -49,8 +49,8 @@ class Layout(object):
 
     #: Dictionary of TouchOSC versions
     VERSION = {
-            "current":str(10).encode('utf-8'),      # Tracks current TouchOSC
-            10:str(10).encode('utf-8'),             # TouchOSC 1.7.3
+            "current":str(10).encode('utf-8'), # Tracks current TouchOSC
+            10:str(10).encode('utf-8'), # TouchOSC 1.7.3
             8:str(8).encode('utf-8')                # < 1.7.3
             }
 
@@ -81,7 +81,7 @@ class Layout(object):
 
     @apply
     def version():
-        doc="""docstring"""
+        doc = """docstring"""
         def fget(self):
             return self._layoutRoot.attrib['version']
         def fset(self, value):
@@ -90,24 +90,24 @@ class Layout(object):
 
     @apply
     def mode():
-        doc="""docstring"""
+        doc = """docstring"""
         def fget(self):
             return self._layoutRoot.attrib['mode']
-        def fset(self,value):
+        def fset(self, value):
             self._layoutRoot.attrib['mode'] = str(value).encode('utf-8')
         return property(**locals())
 
     @apply
     def orientation():
-        doc="""docstring"""
+        doc = """docstring"""
         def fget(self):
             return self._layoutRoot.attrib['orientation']
-        def fset(self,value):
+        def fset(self, value):
             self._layoutRoot.attrib['orientation'] = str(value).encode('utf-8')
         return property(**locals())
 
     @classmethod
-    def createFromExisting(cls,source):
+    def createFromExisting(cls, source):
         """
         Create a TouchOSCLayout instance from an existing TouchOSC Layout.
 
@@ -120,21 +120,21 @@ class Layout(object):
         layoutParser = etree.XMLParser(remove_blank_text=True)
         if type(source) is str:
             try:
-                f = ZipFile(source,"r")
-                layoutTree = etree.parse(StringIO(f.read("index.xml")),layoutParser)
+                f = ZipFile(source, "r")
+                layoutTree = etree.parse(StringIO(f.read("index.xml")), layoutParser)
             except IOError:
                 pass
         elif type(source) is file:
             #TODO: Test this
             try:
-                layoutTree = etree.parse(source,layoutParser)
+                layoutTree = etree.parse(source, layoutParser)
             except:
                 pass
         pass
 
     @classmethod
-    def createEmpty(cls,version=VERSION["current"], 
-                mode=MODE['iPad'], 
+    def createEmpty(cls, version=VERSION["current"],
+                mode=MODE['iPad'],
                 orientation=ORIENTATION['horizontal']):
         """
         Create an empty Layout instance.
