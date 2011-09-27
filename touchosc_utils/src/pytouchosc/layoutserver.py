@@ -40,52 +40,34 @@ import time
 import logging
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
-def make_layoutHandler_class(layoutName, layoutFile):
-    """
-    Function to generate a class that extends BaseHTTPRequest Handler.
 
-    @type layoutName: str
-    @param layoutName: Name of the layout file (e.g. sample.touchosc)
-    @type layoutFile: File
-    @param layoutFile: The layout file to be loaded to the TouchOSC app.
-    """
-    #TODO: Do HTTPRequestHandler the proper "Python way".
-    # This is sort of a hack.  The way that this should probably be done:
-    # 1. Extend the HTTPServer class to take "layoutFile" as part of the constructor.
-    # 2. In my overridden do_GET function in the LayoutHTTPRequestHandler, I should
-    # then take advantage of the instance variable "server" which points to the 
-    # over ridden HTTPServer class.  I should be able to get to all of the instance
-    # variables of the HTTPServer class through that "server" variable.
-    #
-    # That is what I tried, but couldn't get working.  Because this is not a really
-    # mission-critical application, this will work for now.
-    class LayoutHTTPRequestHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            try:
-                self.send_response(200)
-                self.send_header('Content-type', 'application/touchosc')
-                self.send_header('Content-Disposition',
-                                 'attachment; filename="%s"' % layoutName)
-                self.end_headers()
-                self.wfile.write(layoutFile)
-            except Exception:
-                import traceback
-                traceback.print_exc(f=sys.stdout)   
-            return
+class LayoutHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        try:
+            self.send_response(200)
+            self.send_header('Content-type', 'application/touchosc')
+            self.send_header('Content-Disposition',
+                             'attachment; filename="%s"' % self.server.layoutName)
+            self.end_headers()
+            self.wfile.write(self.server.layoutFile)
+        except Exception:
+            import traceback
+            traceback.print_exc(f=sys.stdout)   
+        return
+    
+    def log_message(self, *args):
+        self.server.log_message(*args)
         
-        def log_message(self, *args):
-            self.server.log_message(*args)
-            
-        def log_error(self, *args):
-            self.server.log_error(*args)
-            
-    return LayoutHTTPRequestHandler
+    def log_error(self, *args):
+        self.server.log_error(*args)
 
 class StoppableHTTPServer(HTTPServer):
     stopped = False
-    def __init__(self, log_message, log_error, *args):
+    def __init__(self, log_message, log_error, layoutName, layoutFile, *args):
         self.log_message = log_message
         self.log_error = log_error
+        self.layoutName = layoutName
+        self.layoutFile = layoutFile
         HTTPServer.__init__(self,*args)
     
     def serve_forever(self):
@@ -135,9 +117,10 @@ class LayoutServer(object):
         
         self.httpd = StoppableHTTPServer(self.debug,
                                          self.error,
+                                         layoutName,
+                                         layoutFile,
                                          ('', port),
-                                         make_layoutHandler_class(layoutName,
-                                                                  layoutFile))
+                                         LayoutHTTPRequestHandler)
 
     def run(self):
         self.bonjourServer.run_register()
