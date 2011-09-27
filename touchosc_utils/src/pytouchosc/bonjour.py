@@ -425,7 +425,7 @@ def main(argv, stdout):
             help="Set verbosity level, up to -vv")
     (options, args) = parser.parse_args(argv)
 
-    osc_bonjour = bonjour(name=options.name,
+    osc_bonjour = Bonjour(name=options.name,
                           port=options.port,
                           regtype=options.regtype)
     # Set up the verbosity levels

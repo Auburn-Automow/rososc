@@ -73,8 +73,18 @@ def make_layoutHandler_class(layoutName,layoutFile):
 
 class LayoutServer(object):
     def __init__(self,layoutPath,name,port):
+        """
+        LayoutServer - IO class for sending TouchOSC layouts to iPhones and iPads.
+        
+        @type layoutPath: str
+        @param layoutPath: Path to the TouchOSC file to be hosted.
+        @type name: str
+        @param name: Name of the OSC server as seen by iPhone/iPad
+        @type port: int
+        @param port: Port number to host the layout file on. 
+        """
         if not os.path.lexists(layoutPath):
-            raise ValueError("Layout file not found: %s",layoutPath)
+            raise ValueError("Layout file not found: %s"%layoutPath)
         layoutZip = zipfile.ZipFile(layoutPath,"r")
         layoutFile = layoutZip.read("index.xml")
         layoutName = os.path.basename(layoutPath)
@@ -106,13 +116,17 @@ def main(argv,stdout):
     if len(args) < 2:
         parser.error("Please specify a layout file.")
         sys.exit(1)
-    layoutFilePath = args[1];    
+    layoutFilePath = args[1]; 
+    
+    # Attempt to instantiate the server class.  Returns a ValueError if the
+    # layoutFilePath is incorrect    
     try:
         server = LayoutServer(layoutFilePath,options.name,options.port)
-    except ValueError:
-        parser.error("Layout file not found: %s",layoutFilePath)
+    except ValueError as e:
+        parser.error(e.message)
         sys.exit(1)
     
+    # Run the server and stop it on a keyboard interrupt.
     try:
         server.run()
     except KeyboardInterrupt:

@@ -9,6 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/rososc_tutorials</url>
 
+  <depend package="touchosc_utils"/>
 </package>
 
 
