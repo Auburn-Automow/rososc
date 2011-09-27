@@ -37,6 +37,7 @@ import zipfile
 import os
 import threading
 import time
+import logging
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 def make_layoutHandler_class(layoutName, layoutFile):
@@ -71,12 +72,21 @@ def make_layoutHandler_class(layoutName, layoutFile):
                 import traceback
                 traceback.print_exc(f=sys.stdout)   
             return
+        
+        def log_message(self, *args):
+            self.server.log_message(*args)
+            
+        def log_error(self, *args):
+            self.server.log_error(*args)
+            
     return LayoutHTTPRequestHandler
 
 class StoppableHTTPServer(HTTPServer):
     stopped = False
-    def __init__(self, *args, **kw):
-        HTTPServer.__init__(self,*args,**kw)
+    def __init__(self, log_message, log_error, *args):
+        self.log_message = log_message
+        self.log_error = log_error
+        HTTPServer.__init__(self,*args)
     
     def serve_forever(self):
         while not self.stopped:
@@ -90,7 +100,7 @@ class StoppableHTTPServer(HTTPServer):
         pass
 
 class LayoutServer(object):
-    def __init__(self, layoutPath, name, port):
+    def __init__(self, layoutPath, name, port, debug = None, info = None, error = None):
         """
         LayoutServer - IO class for sending TouchOSC layouts to iPhones and iPads.
         
@@ -101,16 +111,33 @@ class LayoutServer(object):
         @type port: int
         @param port: Port number to host the layout file on. 
         """
+        self.debug = logging.logdebug
+        self.info = logging.loginfo
+        self.error = logging.logerror
+        
+        if debug:
+            self.debug = debug
+        if error:
+            self.error = error
+        if info:
+            self.info = info
+        
         if not os.path.lexists(layoutPath):
             raise ValueError("Layout file not found: %s" % layoutPath)
         layoutZip = zipfile.ZipFile(layoutPath, "r")
         layoutFile = layoutZip.read("index.xml")
         layoutName = os.path.basename(layoutPath)
         self.bonjourServer = bonjour.Bonjour(name, port,
-                                             '_touchosceditor._tcp')
-        self.httpd = StoppableHTTPServer(('', port),
-                                     make_layoutHandler_class(layoutName,
-                                                              layoutFile))
+                                             '_touchosceditor._tcp',
+                                             debug = self.debug,
+                                             info = self.info,
+                                             error = self.error)
+        
+        self.httpd = StoppableHTTPServer(self.debug,
+                                         self.error,
+                                         ('', port),
+                                         make_layoutHandler_class(layoutName,
+                                                                  layoutFile))
 
     def run(self):
         self.bonjourServer.run_register()

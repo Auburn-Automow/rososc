@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 # bonjour.py
 
-# Copyright (c) 2011, Christoph Gohlke
+# Copyright (c) 2011, Michael Carroll
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,51 +48,7 @@ import socket
 import threading
 import copy
 import sys
-from types import *
-
-
-def defaultDebugMsgCallback(msg, *args):
-    """
-    Default handler for bonjour.debug.  Can be overridden with the logging facility 
-    of your choice
-
-    @type msg: str
-    @param msg: Message to be displayed as a debug message.
-    @param args: format-string arguments, if necessary
-    """
-    sys.stdout.write("Bonjour Debug: %s\n" % (msg % args))
-
-
-def defaultInfoMsgCallback(msg, *args):
-    """
-    Default handler for bonjour.info.  Can be overridden with the logging facility 
-    of your choice
-
-    @type msg: str
-    @param msg: Message to be displayed as an info message.
-    @param args: format-string arguments, if necessary
-    """
-    sys.stdout.write("Bonjour Info: %s\n" % (msg % args))
-
-def defaultErrorMsgCallback(msg, *args):
-    """
-    Default handler for bonjour.error.  Can be overridden with the logging facility 
-    of your choice
-
-    @type msg: str
-    @param msg: Message to be displayed as an error message.
-    @param args: format-string arguments, if necessary
-    """
-    sys.stderr.write("Bonjour Error: %s\n" % (msg % args))
-
-def quietHandler(msg, *args):
-    """
-    Can be used as a message handler to silence command line output.
-
-    @type msg: str
-    @param msg: message that will be discarded silently.
-    """
-    return
+import logging
 
 class Bonjour():
     """
@@ -100,7 +56,7 @@ class Bonjour():
     Bonjour service and browsing the network for services matching a certain 
     regtype.
     """
-    def __init__(self, name, port, regtype):
+    def __init__(self, name, port, regtype, debug=None, info=None, error=None):
         """
         Initialize a Bonjour object.  
 
@@ -114,15 +70,22 @@ class Bonjour():
                         _udp").  A list of service types is available at:
                         U{http://www.dns-sd.org/ServiceTypes.html}
         """
-        self.debug = defaultDebugMsgCallback;
-        self.info = defaultInfoMsgCallback;
-        self.error = defaultErrorMsgCallback;
+        self.debug = logging.logdebug
+        self.info = logging.loginfo
+        self.error = logging.logerror
+        
+        if debug:
+            self.debug = debug
+        if error:
+            self.error = error
+        if info:
+            self.info = info
 
-        assert type(name) is StringType
+        assert type(name) is str
         self.name = name
-        assert type(port) is StringType or IntType
+        assert type(port) is str or int
         self.port = int(port)
-        assert type(regtype) is StringType
+        assert type(regtype) is str
         self.regtype = regtype
         self.domain = "local"
         self.fullname = pybonjour.DNSServiceConstructFullName(self.name,
@@ -144,39 +107,6 @@ class Bonjour():
         self.clients = dict()
         #: Lock for modifying the dictionary of clients.
         self.clientLock = threading.Lock()
-
-    def setDebug(self, logFunction):
-        """
-        Set the debug logging handler
-
-        @type logFunction: function 
-        @param logFunction: Logging function handler 
-        """
-        assert type(logFunction) is FunctionType, \
-            "Cannot override logger, %s is not of type function" % logFunction
-        self.debug = logFunction
-
-    def setInfo(self, logFunction):
-        """
-        Set the info logging handler
-
-        @type logFunction: function 
-        @param logFunction: Logging function handler
-        """
-        assert type(logFunction) is FunctionType, \
-            "Cannot override logger, %s is not of type function" % logFunction
-        self.info = logFunction
-
-    def setError(self, logFunction):
-        """
-        Set the error logging handler
-
-        @type logFunction: function 
-        @param logFunction: Logging function handler
-        """
-        assert type(logFunction) is FunctionType, \
-                "Cannot override logger, %s is not of type function" % logFunction
-        self.error = logFunction
 
     def getClients(self):
         """
@@ -430,10 +360,10 @@ def main(argv, stdout):
                           regtype=options.regtype)
     # Set up the verbosity levels
     if options.verbosity == None:
-        osc_bonjour.info = quietHandler
-        osc_bonjour.debug = quietHandler
+        osc_bonjour.info = logging.logquiet
+        osc_bonjour.debug = logging.logquiet
     elif options.verbosity == 1:
-        osc_bonjour.debug = quietHandler
+        osc_bonjour.debug = logging.logquiet
 
     osc_bonjour.run()
     import time
@@ -447,7 +377,6 @@ def main(argv, stdout):
         sys.exit(0)
 
 if __name__ == "__main__":
-    import sys
     from optparse import OptionParser
 
     main(sys.argv, sys.stdout)

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 # -*- coding: utf-8 -*-
-# merge_layouts
-#
+# bonjour.py
+
 # Copyright (c) 2011, Michael Carroll
 # All rights reserved.
 #
@@ -30,29 +30,48 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-__author__ = "Michael Carroll <carroll.michael@gmail.com>"
+import sys
 
-import roslib; roslib.load_manifest('touchosc_utils')
-import rospy
+def logdebug(msg, *args):
+    """
+    Default handler.  Can be overridden with the logging facility 
+    of your choice
 
-from pytouchosc.layoutserver import LayoutServer
+    @type msg: str
+    @param msg: Message to be displayed as a debug message.
+    @param args: format-string arguments, if necessary
+    """
+    sys.stdout.write("Debug: %s\n" % (msg % args))
 
-if __name__ == '__main__':
-    rospy.init_node("osc_layoutserver")
 
-    name = rospy.get_param('~name','OSC Server')
-    port = int(rospy.get_param('~port','9658'))
-    path = rospy.get_param('~layout_path','')
+def loginfo(msg, *args):
+    """
+    Default handler.  Can be overridden with the logging facility 
+    of your choice
 
-    server = LayoutServer(path,name,port,
-            debug = rospy.logdebug,
-            info = rospy.loginfo,
-            error = rospy.logerr)
+    @type msg: str
+    @param msg: Message to be displayed as an info message.
+    @param args: format-string arguments, if necessary
+    """
+    sys.stdout.write("Info: %s\n" % (msg % args))
 
-    server.run()
+def logerror(msg, *args):
+    """
+    Default handler.  Can be overridden with the logging facility 
+    of your choice
 
-    while True:
-        if rospy.is_shutdown():
-            server.stop()
-            break
-        rospy.spin()
+    @type msg: str
+    @param msg: Message to be displayed as an error message.
+    @param args: format-string arguments, if necessary
+    """
+    sys.stderr.write("Error: %s\n" % (msg % args))
+
+def logquiet(msg, *args):
+    """
+    Can be used as a message handler to silence command line output.
+
+    @type msg: str
+    @param msg: message that will be discarded silently.
+    """
+    return
+

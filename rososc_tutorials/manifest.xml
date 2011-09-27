@@ -10,6 +10,7 @@
   <url>http://ros.org/wiki/rososc_tutorials</url>
 
   <depend package="touchosc_utils"/>
+  <depend package="rospy"/>
 </package>
 
 
