@@ -3,12 +3,14 @@
 import roslib; roslib.load_manifest('osc_bridge')
 import rospy
 
-
 import osc_msgs.msg
+import osc_msgs.encoding
+from pytouchosc.bonjour import Bonjour
 
-import liblo
-import bonjour
-
+from twisted.internet import reactor
+from txosc import osc
+from txosc import dispatch
+from txosc import async
 
 class OSCBridge:
     def __init__(self):
@@ -24,20 +26,32 @@ class OSCBridge:
         self.pub_osc('/osc/pub',osc_msgs.msg.OSC)
 
         # Variables
-        self.b = bonjour.bonjour(self.name,self.port,self.regtype)
-        self.b.info = rospy.loginfo
-        self.b.error = rospy.logerr
-        self.b.debug = rospy.logdebug
+        self.bonjourServer = Bonjour(self.name, self.port,
+                                     '_touchosceditor._tcp',
+                                     debug = rospy.logdebug,
+                                     info = rospy.loginfo,
+                                     error = rospy.logerr)
+        self.osc_receiver = dispatch.Receiver()
+        self._server_port = reactor.listenUDP(self.port,
+                async.DatagramServerProtocol(self.receiver))
+        rospy.loginfo("Listening on osc.udp://localhost:%s" % (self.port))
+        self.receiver.addCallback("/ping", self.ping_handler)
+        self.receiver.fallback = self.default_handler
      
     def run(self):
-        self.b.run()
+        reactor.run()
+
+    def stop(self):
+        reactor.stop()
 
     def osc_cb(self,msg):
-        bundle = liblo.Bundle()
+        pass
 
-        msg.
+    def default_handler(self, message, address):
+        pass
 
-        return
+    def ping_handler(self, message, address):
+        rospy.logdebug("Got /ping from %s" % address)
 
 if __name__=="__main__":
     rospy.init_node("osc_bridge")
