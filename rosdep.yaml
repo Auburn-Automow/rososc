@@ -15,6 +15,14 @@ txosc:
     lion:
       pip:
         packages: [ txosc ]
+lxml:
+  ubuntu:
+    pip:
+      packages: [ lxml ]
+    osc:
+      lion:
+        pip:
+          packages: [ lxml ]
 libavahi-compat-libdnssd:
   ubuntu: 
     apt:
