@@ -8,11 +8,6 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/osc_utils</url>
-  <depend package="osc_bridge"/>
-
-  <export>
-      <rosdoc config="rosdoc.yaml"/>
-  </export>
 </package>
 
 

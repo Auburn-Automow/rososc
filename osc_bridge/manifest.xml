@@ -11,12 +11,6 @@
   <depend package="rospy" />
   <depend package="osc_msgs" />
   <depend package="touchosc_utils"/>
-
-  <rosdep name="pybonjour" />
-  <rosdep name="txosc" />
-  <export>
-      <rosdoc config="rosdoc.yaml"/>
-  </export>
 </package>
 
 

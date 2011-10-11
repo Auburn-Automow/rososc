@@ -3,64 +3,17 @@
 import roslib; roslib.load_manifest('osc_bridge')
 import rospy
 
-import osc_msgs.msg
-import osc_msgs.encoding
-from pytouchosc.bonjour import Bonjour
-
-from twisted.internet import reactor
-from txosc import osc
-from txosc import dispatch
-from txosc import async
-
-class OSCBridge:
-    def __init__(self):
-        # Parameters
-        self.name = rospy.get_param('~name','ROS OSC Node')
-        self.port = int(rospy.get_param('~port','9000'))
-        self.regtype = rospy.get_param('~regtype','_osc._udp')
-
-        # Subscribers
-        self.sub_osc('/osc/sub',osc_msgs.msg.OSC,self.osc_cb)
-
-        # Publishers
-        self.pub_osc('/osc/pub',osc_msgs.msg.OSC)
-
-        # Variables
-        self.bonjourServer = Bonjour(self.name, self.port,
-                                     '_touchosceditor._tcp',
-                                     debug = rospy.logdebug,
-                                     info = rospy.loginfo,
-                                     error = rospy.logerr)
-        self.osc_receiver = dispatch.Receiver()
-        self._server_port = reactor.listenUDP(self.port,
-                async.DatagramServerProtocol(self.receiver))
-        rospy.loginfo("Listening on osc.udp://localhost:%s" % (self.port))
-        self.receiver.addCallback("/ping", self.ping_handler)
-        self.receiver.fallback = self.default_handler
-     
-    def run(self):
-        reactor.run()
-
-    def stop(self):
-        reactor.stop()
-
-    def osc_cb(self,msg):
-        pass
-
-    def default_handler(self, message, address):
-        pass
-
-    def ping_handler(self, message, address):
-        rospy.logdebug("Got /ping from %s" % address)
+from oscbridge import OSCBridge
 
 if __name__=="__main__":
     rospy.init_node("osc_bridge")
     rospy.loginfo("ROS OSC Python Node")
     
-    bridge=OSCBridge.OSCBridge()
+    bridge = OSCBridge("asdf",12345)
 
     while True:
         if rospy.is_shutdown():
+            bridge.stop()
             break
-        rospy.spin()
+        bridge.run()
 
