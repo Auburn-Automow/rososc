@@ -6,16 +6,12 @@ import sys
 
 from twisted.internet import reactor
 
-from oscbridge import OSCBridge
- 
+from oscnode import OSCNode
 
 if __name__=="__main__":
-    rospy.init_node("osc_bridge")
-    rospy.loginfo("ROS OSC Python Node")
-
     def start():
         try:
-            OSCBridge("Test Bridge", 12345)
+            OSCNode("Test Node", 8000)
         except:
             import traceback
             traceback.print_exc()
