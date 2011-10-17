@@ -11,6 +11,7 @@
   <depend package="rospy" />
   <depend package="osc_msgs" />
   <depend package="touchosc_utils"/>
+  <depend package="std_msgs" />
 
   <rosdep name="pybonjour" />
   <rosdep name="txosc" />

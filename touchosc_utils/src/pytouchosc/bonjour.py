@@ -118,13 +118,14 @@ class Bonjour():
         with self.clientLock:
             return copy.copy(self.clients)
         
-    def run_browser(self):
+    def run_browser(self, daemon = False):
         """
         Run the Bonjour service browser
         """
         if not self._isBrowserRunning:
             self._isBrowserRunning = True
             self.browser_t = threading.Thread(target=self.browser)
+            self.browser_t.setDaemon(daemon)
             self.browser_t.start()
 
     def stop_browser(self):
@@ -136,13 +137,14 @@ class Bonjour():
             self.browser_t.join()
             del self.browser_t
 
-    def run_register(self):
+    def run_register(self, daemon = False):
         """
         Run the Bonjour service registration
         """
         if not self._isRegisterRunning:
             self._isRegisterRunning = True
             self.register_t = threading.Thread(target=self.register)
+            self.register_t.setDaemon(daemon)
             self.register_t.start()
 
     def stop_register(self):
@@ -154,17 +156,18 @@ class Bonjour():
             self.register_t.join()
             del self.register_t
 
-    def run(self):
+    def run(self, daemon = False):
         """
         Run both the worker threads for registration and browsing
         """
-        self.run_browser()
-        self.run_register()
+        self.run_browser(daemon)
+        self.run_register(daemon)
 
     def shutdown(self):
         """
         Stop both the worker threads for registration and browsing
         """
+        self.debug("Received shutdown signal")
         self.stop_browser()
         self.stop_register()
 
