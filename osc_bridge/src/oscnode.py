@@ -56,9 +56,5 @@ class OSCNode:
         reactor.stop()
         
     def fallback(self, message, address):
+        rospy.loginfo("Unhandled message from %s"%address)
         rospy.loginfo(message)
-        m = dict
-        print "Message Tests"
-        print "-------------"
-        print message.getValues()
-        print osc.getAddressParts(message.address)
