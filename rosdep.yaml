@@ -17,12 +17,12 @@ txosc:
         packages: [ txosc ]
 lxml:
   ubuntu:
-    pip:
-      packages: [ lxml ]
-    osc:
-      lion:
-        pip:
-          packages: [ lxml ]
+    apt:
+      packages: [ python-lxml ]
+  osx:
+    lion:
+      pip:
+        packages: [ lxml ]
 libavahi-compat-libdnssd:
   ubuntu: 
     apt:
