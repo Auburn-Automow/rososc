@@ -90,15 +90,14 @@ class Layout(object):
     
     def walkDict(self, aDict, path='', sep='/'):
         for k, v in aDict.iteritems():
+            new_path = path
             if k:
-                new_k = path + sep + str(k)
-            else:
-                new_k = path
+                new_path += sep + str(k)
             try:
-                for i in self.walkDict(v, new_k):
+                for i in self.walkDict(v, new_path):
                     yield i
             except AttributeError:
-                yield (new_k, v)
+                yield (new_path, v)
         
     @apply
     def version():

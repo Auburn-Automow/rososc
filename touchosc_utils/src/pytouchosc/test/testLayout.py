@@ -63,13 +63,24 @@ class LayoutTest(unittest.TestCase):
         self.assertEqual(tabpageNames[0],'1')
         self.assertEqual(tabpageNames[1],'TextDemo')
         
-    def test_getSendableMessages(self):
-        tabpageNames = self.layout.getTabpageNames()
-        
     def test_walkDict(self):
         aDict = {'toggle1': {None: 0.0, 'z': False}}
-        testDict = {'toggle1': 0.0, 'toggle1/z': False}
-        newDict = {}
-        self.layout.walkDict(aDict, newDict, '')
+        testDict = {'/toggle1': 0.0, '/toggle1/z': False}
+        newDict = dict(self.layout.walkDict(aDict))
         self.assertEqual(newDict, testDict)
+        
+    def test_walkDict_withPath(self):
+        aDict = {'toggle1': {None: 0.0, 'z': False}}
+        testDict = {'/1/toggle1': 0.0, '/1/toggle1/z': False}
+        path = '/1'
+        newDict = dict(self.layout.walkDict(aDict, path))
+        self.assertEqual(newDict, testDict)
+        # Check for side effects
+        self.assertEqual(path,'/1')
+        
+    def test_getSendableMessages(self):
+        print self.layout.getSendableMessages(self.layout.getTabpageNames()[0])
+        
+    def test_getReceivableMessages(self):
+        print self.layout.getReceivableMessages(self.layout.getTabpageNames()[0])
         
