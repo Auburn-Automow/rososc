@@ -62,5 +62,9 @@ class LayoutTest(unittest.TestCase):
         tabpageNames = self.layout.getTabpageNames()
         self.assertEqual(tabpageNames[0],'1')
         self.assertEqual(tabpageNames[1],'TextDemo')
-            
-    
+        
+    def test_getSendableMessages(self):
+        tabpageNames = self.layout.getTabpageNames()
+        print self.layout.getNestedSendableMessages(tabpageNames[0])
+        print self.layout.getSendableMessages(tabpageNames[0])
+        

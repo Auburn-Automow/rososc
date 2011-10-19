@@ -27,3 +27,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+__author__ = "Michael Carroll <carroll.michael@gmail.com>"
+__version__ = "1.7.3"
+
+__all__ = ["bonjour", "controls", "layout", "tabpage"]
+
