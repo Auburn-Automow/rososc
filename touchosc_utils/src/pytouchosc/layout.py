@@ -69,23 +69,36 @@ class Layout(object):
         return self._tabPages[tabpage].getReceiveDict()
         
     def getSendableMessages(self, tabpage):
-        sendDict = self._tabPages[tabpage].getSendDict()
-        newDict = {}
-        self.walkDict(sendDict, newDict, '/' + str(tabpage) + '/')
-        return newDict
-        
-    def walkDict(self, aDict, newDict, path=''):
-        for k,v in aDict.iteritems():
-            if type(v) is dict:
-                self.walkDict(v,newDict,path+k)
-            else:
-                if k is None:
-                    newDict[path] = v
-                else:
-                    newDict[path + '/' + k] = v
+        sendDict = self.getNestedSendableMessages(tabpage)
+        return dict(self.walkDict(sendDict,'/' + str(tabpage)))
     
     def getReceivableMessages(self, tabpage):
-        pass    
+        receiveDict = self.getNestedReceivableMessages(tabpage)
+        return dict(self.walkDict(receiveDict,'/' + str(tabpage)))
+        
+    #===========================================================================
+    # def walkDict(self, aDict, newDict, path=''):
+    #    for k,v in aDict.iteritems():
+    #        if type(v) is dict:
+    #            self.walkDict(v,newDict,path+'/'+k)
+    #        else:
+    #            if k is None:
+    #                newDict[path] = v
+    #            else:
+    #                newDict[path + '/' + k] = v
+    #===========================================================================
+    
+    def walkDict(self, aDict, path='', sep='/'):
+        for k, v in aDict.iteritems():
+            if k:
+                new_k = path + sep + str(k)
+            else:
+                new_k = path
+            try:
+                for i in self.walkDict(v, new_k):
+                    yield i
+            except AttributeError:
+                yield (new_k, v)
         
     @apply
     def version():
