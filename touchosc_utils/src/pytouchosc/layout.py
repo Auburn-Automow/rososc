@@ -74,12 +74,15 @@ class Layout(object):
         self.walkDict(sendDict, newDict, '/' + str(tabpage) + '/')
         return newDict
         
-    def walkDict(self, aDict, newDict, path='/'):
-        for k in aDict:
-            if type(aDict[k]) != dict:
-                newDict[path] = aDict[k]
+    def walkDict(self, aDict, newDict, path=''):
+        for k,v in aDict.iteritems():
+            if type(v) is dict:
+                self.walkDict(v,newDict,path+k)
             else:
-                self.walkDict(aDict[k],newDict,path+k)
+                if k is None:
+                    newDict[path] = v
+                else:
+                    newDict[path + '/' + k] = v
     
     def getReceivableMessages(self, tabpage):
         pass    

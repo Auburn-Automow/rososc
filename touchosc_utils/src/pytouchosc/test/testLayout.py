@@ -65,6 +65,11 @@ class LayoutTest(unittest.TestCase):
         
     def test_getSendableMessages(self):
         tabpageNames = self.layout.getTabpageNames()
-        print self.layout.getNestedSendableMessages(tabpageNames[0])
-        print self.layout.getSendableMessages(tabpageNames[0])
+        
+    def test_walkDict(self):
+        aDict = {'toggle1': {None: 0.0, 'z': False}}
+        testDict = {'toggle1': 0.0, 'toggle1/z': False}
+        newDict = {}
+        self.layout.walkDict(aDict, newDict, '')
+        self.assertEqual(newDict, testDict)
         
