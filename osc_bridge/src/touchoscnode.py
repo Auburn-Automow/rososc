@@ -8,6 +8,8 @@ from txosc import osc
 from txosc import dispatch
 from txosc import async
 
+from pytouchosc import 
+
 from oscnode import OSCNode
 
 class TouchOSCNode(OSCNode):
@@ -31,8 +33,10 @@ class TouchOSCNode(OSCNode):
     def osc_TextData_cb(self, message, address):
         print message.getValues
 
+
 class AbstractTabpage(object):
-    def __init__(self, name):
+    def __init__(self, tabpage):
+        self.name
         
         
     def addTwistedCallbacks(self):

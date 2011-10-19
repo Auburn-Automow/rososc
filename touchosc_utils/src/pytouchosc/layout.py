@@ -37,6 +37,7 @@ import base64
 import os
 from StringIO import StringIO
 
+import controls, tabpage
 
 class Layout(object):
     """
@@ -78,7 +79,25 @@ class Layout(object):
         """
         self._layout = tree
         self._layoutRoot = tree.getroot()
+        self._tabPages = dict()
+        for tp in self._layoutRoot.getchildren():
+            self._tabPages[tp.name] = tp
 
+    def getNumberTabpages(self):
+        return len(self._layoutRoot.getchildren())
+    
+    def getTabpageNames(self,encoded = False):
+        if encoded:
+            return [x.attrib['name'] for x in self._tabPages.itervalues()]
+        else:
+            return [x for x in self._tabPages.iterkeys()]
+    
+    def getSendableMessages(self, tabpage):
+        return self._tabPages[tabpage].getSendDict()
+    
+    def getReceivableMessages(self, tabpage):
+        return self._tabPages[tabpage].getReceiveDict()
+        
     @apply
     def version():
         doc = """docstring"""
@@ -117,11 +136,20 @@ class Layout(object):
         @rtype: Layout 
         @return: An instance containing the layout 
         """
+        fallback = etree.ElementDefaultClassLookup()
+        lookupTabpages = etree.ElementNamespaceClassLookup(fallback)
+        namespace = lookupTabpages.get_namespace(None)
+        namespace['tabpage'] = tabpage.Tabpage
+        lookupControls = etree.AttributeBasedElementClassLookup('type', 
+                                controls.type_class_mapping,lookupTabpages)
         layoutParser = etree.XMLParser(remove_blank_text=True)
+        layoutParser.setElementClassLookup(lookupControls)
+        
         if type(source) is str:
             try:
                 f = ZipFile(source, "r")
                 layoutTree = etree.parse(StringIO(f.read("index.xml")), layoutParser)
+                f.close()
             except IOError:
                 pass
         elif type(source) is file:
@@ -130,7 +158,7 @@ class Layout(object):
                 layoutTree = etree.parse(source, layoutParser)
             except:
                 pass
-        pass
+        return Layout(layoutTree)
 
     @classmethod
     def createEmpty(cls, version=VERSION["current"],

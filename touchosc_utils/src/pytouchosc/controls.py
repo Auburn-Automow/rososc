@@ -31,7 +31,6 @@
 from lxml import etree
 import base64
 
-
 class Control(etree.ElementBase):
     colors = ["red", "green", "blue", "yellow", "purple", "gray", "orange"]
 
