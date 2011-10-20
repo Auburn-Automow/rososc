@@ -17,7 +17,8 @@ class Layout(object):
 
     #: Dictionary of TouchOSC versions
     VERSION = {
-            "current":str(10).encode('utf-8'), # Tracks current TouchOSC
+            "current":str(11).encode('utf-8'), # Tracks current TouchOSC
+            11:str(11).encode('utf-8'), # TouchOSC 1.7.4
             10:str(10).encode('utf-8'), # TouchOSC 1.7.3
             8:str(8).encode('utf-8')                # < 1.7.3
             }
@@ -75,18 +76,6 @@ class Layout(object):
     def getReceivableMessages(self, tabpage):
         receiveDict = self.getNestedReceivableMessages(tabpage)
         return dict(self.walkDict(receiveDict,'/' + str(tabpage)))
-        
-    #===========================================================================
-    # def walkDict(self, aDict, newDict, path=''):
-    #    for k,v in aDict.iteritems():
-    #        if type(v) is dict:
-    #            self.walkDict(v,newDict,path+'/'+k)
-    #        else:
-    #            if k is None:
-    #                newDict[path] = v
-    #            else:
-    #                newDict[path + '/' + k] = v
-    #===========================================================================
     
     def walkDict(self, aDict, path='', sep='/'):
         for k, v in aDict.iteritems():

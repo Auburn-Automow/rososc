@@ -400,7 +400,8 @@ type_class_mapping = {
                 "multipush":    MultiButton,
                 "multitoggle":  MultiButton,
                 "multifaderv":  MultiDial,
-                "multifaderh":  MultiDial 
+                "multifaderh":  MultiDial,
+                "multixy":      XYPad
                 }
 
 def test_controls():
