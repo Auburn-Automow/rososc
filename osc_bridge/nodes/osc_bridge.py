@@ -6,12 +6,12 @@ import sys
 
 from twisted.internet import reactor
 
-from oscnode import OSCNode
+from touchoscnode import TouchOSCNode
 
 if __name__=="__main__":
     def start():
         try:
-            OSCNode("Test Node", 8000)
+            TouchOSCNode("asdf", name="Test", port=8000)
         except:
             import traceback
             traceback.print_exc()

@@ -4,8 +4,6 @@ import rospy
 import osc_msgs.msg
 import osc_msgs.encoding
 
-from std_msgs.msg import String
-
 from pytouchosc.bonjour import Bonjour
 
 from twisted.internet import reactor, threads
@@ -25,9 +23,9 @@ class Node:
     def _shutdown_by_ros(self, *args):
         reactor.fireSystemEvent('shutdown')
 
-class OSCNode:
+class OSCNode(object):
     def __init__(self, name, port, regtype = '_osc._udp'):
-        Node("osc_bridge")
+        Node(name)
         self.name = name
         self.port = port
         self.regtype = regtype
@@ -43,18 +41,22 @@ class OSCNode:
         self._osc_receiver = dispatch.Receiver()
         self._osc_receiver_port = reactor.listenUDP(self.port, async.DatagramServerProtocol(self._osc_receiver))
         
+        self._osc_sender = async.DatagramClientProtocol()
+        self._osc_sender_port = reactor.listenUDP(0, self._osc_sender)
+          
         #Add OSC callbacks
-        self._osc_receiver.addCallback("/ping", self.ping_handler)
         self._osc_receiver.addCallback("/quit", self.quit_handler)
         self._osc_receiver.fallback = self.fallback
-
-    def ping_handler(self, message, address):
-        rospy.loginfo("Got %s from %s" % (message, address))
+        
+    def sendToClients(self, element):
+        clients = self.bonjourServer.getClients()
+        for client in clients.itervalues():
+            self._osc_sender.send(element, (client['ip'], client['port']))     
         
     def quit_handler(self, message, address):
         rospy.loginfo("Got /quit, shutting down")
         reactor.stop()
         
     def fallback(self, message, address):
-        rospy.loginfo("Unhandled message from %s"%address)
-        rospy.loginfo(message)
+        rospy.loginfo(message.address)
+        rospy.loginfo(message.getValues())
