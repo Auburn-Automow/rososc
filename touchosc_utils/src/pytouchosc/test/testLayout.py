@@ -5,7 +5,7 @@ from StringIO import StringIO
 from zipfile import ZipFile
 from lxml import etree
 
-homePath = '/Users/mjcarroll/ros/'
+homePath = '/home/mjcarroll/ros/'
 layoutPath = 'mcarroll-ros-pkg/rososc/rososc_tutorials/layouts/'
 layoutFile = 'ROS-Demo-iPad.touchosc'
 layoutBare = 'index.xml'

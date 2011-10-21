@@ -17,12 +17,10 @@ from oscnode import OSCNode
 class TouchOSCNode(OSCNode):
     def __init__(self, layout, name, port, regtype='_osc._udp'):
         super(TouchOSCNode, self).__init__(name, port, regtype)
+        
+        # Handle the accelerometer data from the iPad
         self._osc_receiver.addCallback("/accxyz", self.accel_cb)
         self.accel_pub = rospy.Publisher(name+'/accel', Imu)
-        
-        self.ros_sub = rospy.Subscriber("chatter", String, self.cb)
-        
-        self.toggle = 0
     
     def accel_cb(self, message, address):
         msg = Imu()
@@ -44,11 +42,19 @@ class TouchOSCNode(OSCNode):
             self.toggle = 0
         self.sendToClients(element)
 
-class AbstractTabpage(object):
-    def __init__(self, tabpage, nodeName):
+class TabpageHandler(object):
+    def __init__(self, tabpage, nodeName, oscReceiver, oscSender):
         self.pub = rospy.Publisher(nodeName + '/' + tabpage.name + '/pub', OSC)
         self.sub = rospy.Subscriber(nodeName + '/' + tabpage.name + '/sub', OSC, self.ros_cb)
+        self.oscReceiver = oscReceiver
+        self.oscSender = oscSender
+        
+        self.oscReceiver.addCallback('/' + tabpage.name, self.osc_cb)
 
     def ros_cb(self, msg):
         data = osc_msgs.encoding.decode_osc(msg)
         
+    def osc_cb(self, message, address):
+        messageDict[message.address] = message.getValues()
+        msg = osc_msgs.encoding.encode_osc(messageDict, client)
+        self.pub.publish(msg)

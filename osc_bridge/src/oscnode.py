@@ -47,8 +47,11 @@ class OSCNode(object):
         #Add OSC callbacks
         self._osc_receiver.addCallback("/quit", self.quit_handler)
         self._osc_receiver.fallback = self.fallback
-        
-    def sendToClients(self, element):
+    
+    def send(self, element, client):
+        self._osc_sender.send(element, client)
+    
+    def sendToAll(self, element):
         clients = self.bonjourServer.getClients()
         for client in clients.itervalues():
             self._osc_sender.send(element, (client['ip'], client['port']))     
@@ -58,5 +61,6 @@ class OSCNode(object):
         reactor.stop()
         
     def fallback(self, message, address):
-        rospy.loginfo(message.address)
-        rospy.loginfo(message.getValues())
+        messageDict = dict()
+        messageDict[message.address] = message.getValues()[0]
+        print osc_msgs.encoding.encode_osc(messageDict,"1")
