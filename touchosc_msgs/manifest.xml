@@ -1,0 +1,15 @@
+<package>
+  <description brief="touchosc_msgs">
+
+     touchosc_msgs
+
+  </description>
+  <author>Michael Carroll</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/touchosc_msgs</url>
+  <depend package="touchosc_utils"/>
+
+</package>
+
+
