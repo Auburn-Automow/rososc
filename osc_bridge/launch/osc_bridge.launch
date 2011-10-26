@@ -1,4 +1,5 @@
 <launch>
+    <param name="touchosc_layout_path" value="/Users/mjcarroll/ros/mcarroll-ros-pkg/rososc/rososc_tutorials/layouts/ROS-Demo-iPhone.touchosc"/>
     <node pkg="osc_bridge" type="osc_bridge.py" name="osc_bridge" output="screen">
         <param name="name" value="ROS OSC Service"/>
         <param name="port" value="9000"/>

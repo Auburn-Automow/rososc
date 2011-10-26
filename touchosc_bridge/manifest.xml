@@ -8,6 +8,7 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/touchosc_bridge</url>
+  <depend package="osc_bridge" />
   <depend package="osc_msgs" />
   <depend package="touchosc_utils"/>
   <depend package="sensor_msgs" />

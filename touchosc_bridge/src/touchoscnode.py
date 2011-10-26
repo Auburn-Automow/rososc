@@ -1,8 +1,9 @@
-import roslib; roslib.load_manifest('osc_bridge')
+import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 
 from sensor_msgs.msg import Imu
 from std_msgs.msg import String
+import touchosc_msgs.msg
 
 from txosc import osc
 from txosc import dispatch
@@ -26,8 +27,35 @@ class TouchOSCNode(OSCNode):
         # Handle the accelerometer data from the iPad
         self._osc_receiver.addCallback("/accxyz", self.accel_cb)
         self.accel_pub = rospy.Publisher(name+'/accel', Imu)
+
+        self.osc_nodes = {}
+        
+        for tabpage in self.tabpages:
+            self.osc_nodes[tabpage] = dispatch.AddressNode(tabpage)
+            self._osc_receiver.addNode(tabpage, self.osc_nodes[tabpage])
+        
+        self._osc_receiver.addCallback("/1/push3", self.scalable_control_cb)
+        self._osc_receiver.addCallback("/1/push3/z", self.scalable_control_cb)
+        self.test_pub = rospy.Publisher('asdf', touchosc_msgs.msg.ScalableControl)
+        
+        self.value = 0.0
+        self.z = False
     
-    
+    def scalable_control_cb(self, message, address):
+        msg = touchosc_msgs.msg.ScalableControl()
+        msg.header.stamp = rospy.Time.now()
+        addressParts = osc.getAddressParts(message.address)
+        msg.common.tabpage = addressParts[0]
+        msg.common.name = addressParts[1]
+        
+        if len(addressParts) == 2:
+            self.value = message.getValues()[0]
+        else:
+            self.z = message.getValues()[0]
+        
+        msg.value = self.value
+        msg.z = bool(self.z)
+        self.test_pub.publish(msg)
     
     def accel_cb(self, message, address):
         msg = Imu()
@@ -40,6 +68,7 @@ class TouchOSCNode(OSCNode):
         cov = 0.01
         msg.linear_acceleration_covariance = [cov,0,0,0,cov,0,0,0,cov]
         self.accel_pub.publish(msg)
+
 
 class TabpageHandler(object):
     def __init__(self, tabpage, nodeName, oscReceiver, oscSender):
