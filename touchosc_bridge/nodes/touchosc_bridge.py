@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 
-import roslib; roslib.load_manifest('osc_bridge')
+import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 import sys
 
 from twisted.internet import reactor
 
-from oscnode import OSCNode
+from touchoscnode import TouchOSCNode
 
 if __name__=="__main__":
     def start():
         try:
             layoutPath = rospy.get_param("/touchosc_layout_path")
-            OSCNode(name="Test", port=8000)
+            TouchOSCNode(layoutPath, name="Test", port=8000)
         except:
             import traceback
             traceback.print_exc()

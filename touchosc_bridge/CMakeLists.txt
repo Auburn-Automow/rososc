@@ -17,11 +17,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 #uncomment if you have defined messages
-<<<<<<< HEAD
 #rosbuild_genmsg()
-=======
-rosbuild_genmsg()
->>>>>>> 307be3fa019555232989984c4b566787ea9f06fb
 #uncomment if you have defined services
 #rosbuild_gensrv()
 

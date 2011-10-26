@@ -46,8 +46,23 @@ class OSCNode(object):
           
         #Add OSC callbacks
         self._osc_receiver.addCallback("/quit", self.quit_handler)
-        self._osc_receiver.fallback = self.fallback
+ 
+        self.first_node = dispatch.AddressNode("1")
+        self.first_node.addCallback("/xy2", self.xy)
+        self._osc_receiver.addNode("1", self.first_node)
     
+        self._osc_receiver.fallback = self.fallback   
+    
+    def xy(self, message, address):
+        print "xy handler"
+        print message.address
+        print message.getValues()
+        
+    def xyz(self, message, address):
+        print "xyz handler"
+        print message.address
+        print message.getValues()
+        
     def send(self, element, client):
         self._osc_sender.send(element, client)
     
@@ -61,6 +76,5 @@ class OSCNode(object):
         reactor.stop()
         
     def fallback(self, message, address):
-        messageDict = dict()
-        messageDict[message.address] = message.getValues()[0]
-        print osc_msgs.encoding.encode_osc(messageDict,"1")
+        print message.address
+        print message.getValues()
