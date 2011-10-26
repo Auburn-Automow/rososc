@@ -24,7 +24,7 @@ class Node:
         reactor.fireSystemEvent('shutdown')
 
 class OSCNode(object):
-    def __init__(self, name, port, regtype = '_osc._udp'):
+    def __init__(self, name, port, regtype='_osc._udp'):
         Node(name)
         self.name = name
         self.port = port
@@ -32,10 +32,10 @@ class OSCNode(object):
         
         #Bonjour Server
         self.bonjourServer = Bonjour(self.name, self.port, self.regtype,
-                debug = rospy.logdebug,
-                info = rospy.loginfo,
-                error = rospy.logerr)
-        reactor.callInThread(self.bonjourServer.run,daemon=True)
+                debug=rospy.logdebug,
+                info=rospy.loginfo,
+                error=rospy.logerr)
+        reactor.callInThread(self.bonjourServer.run, daemon=True)
         
         #Twisted OSC receiver
         self._osc_receiver = dispatch.Receiver()
@@ -46,22 +46,8 @@ class OSCNode(object):
           
         #Add OSC callbacks
         self._osc_receiver.addCallback("/quit", self.quit_handler)
- 
-        self.first_node = dispatch.AddressNode("1")
-        self.first_node.addCallback("/xy2", self.xy)
-        self._osc_receiver.addNode("1", self.first_node)
     
         self._osc_receiver.fallback = self.fallback   
-    
-    def xy(self, message, address):
-        print "xy handler"
-        print message.address
-        print message.getValues()
-        
-    def xyz(self, message, address):
-        print "xyz handler"
-        print message.address
-        print message.getValues()
         
     def send(self, element, client):
         self._osc_sender.send(element, client)
@@ -69,7 +55,6 @@ class OSCNode(object):
     def sendToAll(self, element):
         clients = self.bonjourServer.getClients()
         for client in clients.itervalues():
-            print element
             self._osc_sender.send(element, (client['ip'], client['port']))     
         
     def quit_handler(self, message, address):
@@ -77,5 +62,4 @@ class OSCNode(object):
         reactor.stop()
         
     def fallback(self, message, address):
-        print message.address
-        print message.getValues()
+        pass

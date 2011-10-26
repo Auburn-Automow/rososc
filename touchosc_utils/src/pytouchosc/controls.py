@@ -273,6 +273,18 @@ class MultiButton(Button):
         def fset(self, value):
             self.set('number_y', value)
         return property(**locals())
+    
+    def getSendableMessages(self):
+        msg = super(MultiButton, self).getSendableMessages()
+        msg[self.name][None] = [0.0] * int(self.number_x) * int(self.number_y)
+        msg[self.name]["dim_x"] = int(self.number_x)
+        msg[self.name]["dim_y"] = int(self.number_y)
+        return msg
+    
+    def getReceivableMessages(self):
+        msg = super(MultiButton, self).getReceivableMessages()
+        msg[self.name][None] = [0.0] * int(self.number_x) * int(self.number_y)
+        return msg
 
 class XYPad(ScalableControl):
     @apply
@@ -385,7 +397,18 @@ class MultiDial(Dial):
         def fset(self, value):
             self.set('number', value)
         return property(**locals())
-
+    
+    def getSendableMessages(self):
+        msg = super(MultiDial, self).getSendableMessages()
+        msg[self.name][None] = [0.0] * int(self.number)
+        msg[self.name]["number"] = int(self.number)
+        return msg
+    
+    def getReceivableMessages(self):
+        msg = super(MultiDial, self).getReceivableMessages()
+        msg[self.name][None] = [0.0] * int(self.number)
+        msg[self.name]["number"] = int(self.number)
+        return msg
 
 type_class_mapping = {
                 "led":          LED,
