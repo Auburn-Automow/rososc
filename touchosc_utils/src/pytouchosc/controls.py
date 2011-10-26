@@ -69,6 +69,12 @@ class Control(etree.ElementBase):
             self.set('color', value)
         return property(**locals())
 
+    def getMessages(self):
+        sendable = self.getSendableMessages()
+        receivable = self.getReceivableMessages()
+        sendable[self.name].update(receivable[self.name])
+        return sendable
+
     def getSendableMessageTypes(self):
         return {self.name:{}}
 
@@ -415,15 +421,9 @@ def test_controls():
     t = root.getchildren()[0]
     print "Receivable Messages"
     for x in t.iterchildren():
-        print x.getReceivableMessages()
-    print "Receivable Message Types"
-    for x in t.iterchildren():
-        print x.getReceivableMessageTypes()
-    print "Sendable Messages"
-    for x in t.iterchildren():
-        print x.getSendableMessages()
-    print "Sendable Message Types"
-    for x in t.iterchildren():
-        print x.getSendableMessageTypes()
+        print x.getMessages()
+        
+if __name__ == '__main__':
+    test_controls()
 
 

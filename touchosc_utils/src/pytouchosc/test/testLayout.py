@@ -78,9 +78,6 @@ class LayoutTest(unittest.TestCase):
         # Check for side effects
         self.assertEqual(path,'/1')
         
-    def test_getSendableMessages(self):
-        print self.layout.getSendableMessages(self.layout.getTabpageNames()[0])
-        
-    def test_getReceivableMessages(self):
-        print self.layout.getReceivableMessages(self.layout.getTabpageNames()[0])
+    def test_getMessages(self):
+        print self.layout.getMessages(self.layout.getTabpageNames()[0])
         

@@ -63,6 +63,9 @@ class Layout(object):
     def getTabpage(self, tabpage):
         return self._tabPages[tabpage]
     
+    def getMessages(self, tabpage):
+        return self._tabPages[tabpage].getMessages()
+    
     def getNestedSendableMessages(self, tabpage):
         return self._tabPages[tabpage].getSendDict()
     

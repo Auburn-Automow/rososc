@@ -14,6 +14,12 @@ class Tabpage(etree.ElementBase):
             self.set('name', base64.b64encode(str(value)))
         return property(**locals())
     
+    def getMessages(self):
+        x = list()
+        for control in self.getchildren():
+            x+= control.getMessages().items()
+        return dict(x)
+    
     def getReceiveDict(self):
         """
         Generate a dictionary of all possible messages that can be received from

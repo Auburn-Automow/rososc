@@ -69,6 +69,7 @@ class OSCNode(object):
     def sendToAll(self, element):
         clients = self.bonjourServer.getClients()
         for client in clients.itervalues():
+            print element
             self._osc_sender.send(element, (client['ip'], client['port']))     
         
     def quit_handler(self, message, address):
