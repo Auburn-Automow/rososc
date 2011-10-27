@@ -2,7 +2,6 @@ import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 
 from sensor_msgs.msg import Imu
-from std_msgs.msg import String
 import touchosc_msgs.msg
 
 from txosc import osc
@@ -36,22 +35,6 @@ class TouchOSCNode(OSCNode):
             tabpageHandlers[tabpage].setSender(self.sendToAll)
             self._osc_receiver.addNode(tabpage, tabpageHandlers[tabpage].osc_node)
     
-    def scalable_control_cb(self, message, address):
-        msg = touchosc_msgs.msg.ScalableControl()
-        msg.header.stamp = rospy.Time.now()
-        addressParts = osc.getAddressParts(message.address)
-        msg.common.tabpage = addressParts[0]
-        msg.common.name = addressParts[1]
-        
-        if len(addressParts) == 2:
-            self.value = message.getValues()[0]
-        else:
-            self.z = message.getValues()[0]
-        
-        msg.value = self.value
-        msg.z = bool(self.z)
-        self.test_pub.publish(msg)
-    
     def accel_cb(self, message, address):
         msg = Imu()
         accels = message.getValues()
@@ -80,7 +63,8 @@ class TabpageHandler(object):
         rosPrefix = self.name + '/' + self.tabpageName + '/'
         for control in self.tabpage.iterchildren():
             controlType = type(control)
-            if controlType is pytouchosc.controls.Button or controlType is pytouchosc.controls.Dial:
+            if controlType is pytouchosc.controls.Button or \
+                controlType is pytouchosc.controls.Dial:
                 msgType = touchosc_msgs.msg.ScalableControl
                 ros_cb = self.scalableControl_ros_cb
                 osc_cb = self.scalableControl_osc_cb
@@ -88,7 +72,8 @@ class TabpageHandler(object):
                 msgType = touchosc_msgs.msg.ScalableControl
                 ros_cb = self.scalableControl_ros_cb
                 osc_cb = None
-            elif controlType is pytouchosc.controls.Time or controlType is pytouchosc.controls.TextField:
+            elif controlType is pytouchosc.controls.Time or \
+                controlType is pytouchosc.controls.TextField:
             	msgType = touchosc_msgs.msg.TouchOSC_Common
                 ros_cb = self.common_ros_cb
                 osc_cb = None
@@ -114,7 +99,7 @@ class TabpageHandler(object):
                 osc_cb = self.xypad_osc_cb
             elif controlType is pytouchosc.controls.MultiXYPad:
                 msgType = touchosc_msgs.msg.MultiXYPad
-                ros_cb = None
+                ros_cb = self.common_ros_cb
                 osc_cb = self.multixypad_osc_cb
             else:
                 msgType = None
@@ -139,10 +124,14 @@ class TabpageHandler(object):
         self.send = sender
     
     def common_ros_cb(self, msg):
+        if type(msg) is not touchosc_msgs.msg.TouchOSC_Common:
+            msg = msg.common
         ctDict = self.messageDict[msg.name]
         address = '/' + msg.tabpage + '/' + msg.name
-#        if msg.color != ctDict['color']:
-#            self.send(osc.Message(address + '/color', msg.color))
+        if msg.color != ctDict['color']:
+            print "Sending color to %s"%address
+            self.send(osc.Message(address + '/color', msg.color))
+            ctDict['color'] = msg.color
 #        if msg.x != int(ctDict['position']['x']):
 #            self.send(osc.Message(address + '/position/x', msg.x))
 #        if msg.y != int(ctDict['position']['y']):
@@ -161,6 +150,43 @@ class TabpageHandler(object):
         if msg.value != ctDict[None]:
             ctDict[None] = msg.value
             self.send(osc.Message(address, msg.value))
+
+    def label_ros_cb(self, msg):
+        self.common_ros_cb(msg.common)
+        ctDict = self.messageDict[msg.common.name]
+        address = '/' + msg.common.tabpage + '/' + msg.common.name
+        if str(msg.value) != ctDict['text']:
+            ctDict['text'] = str(msg.value)
+            self.send(osc.Message(address, ctDict['text']))
+            
+    def multibutton_ros_cb(self, msg):
+        self.common_ros_cb(msg.common)
+        ctDict = self.messageDict[msg.common.name]
+        address = '/' + msg.common.tabpage + '/' + msg.common.name
+        if list(msg.values) != ctDict[None]:
+            ctDict[None] = list(msg.values)
+            message = osc.Message(address,*msg.values)
+            self.send(message)
+            
+    def multifader_ros_cb(self, msg):
+        self.common_ros_cb(msg.common)
+        ctDict = self.messageDict[msg.common.name]
+        address = '/' + msg.common.tabpage + '/' + msg.common.name
+        
+        if list(msg.values) != ctDict[None]:
+            ctDict[None] = list(msg.values)
+            message = osc.Message(address,*ctDict[None])
+            self.send(message)
+            
+    def xypad_ros_cb(self, msg):
+        self.common_ros_cb(msg.common)
+        ctDict = self.messageDict[msg.common.name]
+        address = '/' + msg.common.tabpage + '/' + msg.common.name
+        
+        if ctDict[None][0] != msg.x or ctDict[None][1] != msg.y:
+            ctDict[None] = [msg.x, msg.y]
+            message = osc.Message(address,*ctDict[None])
+            self.send(message)
     
     def scalableControl_osc_cb(self, message, address):
         tabpageName = osc.getAddressParts(message.address)[0]
@@ -175,34 +201,10 @@ class TabpageHandler(object):
             
         msg = touchosc_msgs.msg.ScalableControl()
         msg.header.stamp = rospy.Time.now()
-        msg.common.tabpage = tabpageName
-        msg.common.name = controlName
-        msg.common.color = ctDict['color']
-        msg.common.x = int(ctDict['position']['x'])
-        msg.common.y = int(ctDict['position']['y'])
-        msg.common.width = int(ctDict['size']['w'])
-        msg.common.height = int(ctDict['size']['h'])
-        msg.common.visibility = ctDict['visibility']
+        msg.common = self.populate_common(tabpageName, controlName)
         msg.z = ctDict['z']
         msg.value = ctDict[None]
         self.ros_publishers[controlName].publish(msg)
-        
-    def label_ros_cb(self, msg):
-        self.common_ros_cb(msg.common)
-        ctDict = self.messageDict[msg.common.name]
-        address = '/' + msg.common.tabpage + '/' + msg.common.name
-        if str(msg.value) != ctDict['text']:
-            ctDict['text'] = str(msg.value)
-            self.send(osc.Message(address, ctDict['text']))
-
-    def multibutton_ros_cb(self, msg):
-        self.common_ros_cb(msg.common)
-        ctDict = self.messageDict[msg.common.name]
-        address = '/' + msg.common.tabpage + '/' + msg.common.name
-        if list(msg.values) != ctDict[None]:
-            ctDict[None] = list(msg.values)
-            message = osc.Message(address,*msg.values)
-            self.send(message)
 
     def multibutton_osc_cb(self, message, address):
         addParts = osc.getAddressParts(message.address)
@@ -222,30 +224,11 @@ class TabpageHandler(object):
         value = message.getValues()
         msg = touchosc_msgs.msg.MultiButton()
         msg.header.stamp = rospy.Time.now()
-        msg.common.tabpage = tabpageName
-        msg.common.name = controlName
-        msg.common.color = ctDict['color']
-        msg.common.x = int(ctDict['position']['x'])
-        msg.common.y = int(ctDict['position']['y'])
-        msg.common.width = int(ctDict['size']['w'])
-        msg.common.height = int(ctDict['size']['h'])
-        msg.common.visibility = ctDict['visibility']
-    
+        msg.common = self.populate_common(tabpageName, controlName)
         msg.dimension = [ctDict['dim_x'], ctDict['dim_y']]
         msg.z = ctDict['z']
         msg.values = ctDict[None]
-        
         self.ros_publishers[controlName].publish(msg)
-
-    def multifader_ros_cb(self, msg):
-        self.common_ros_cb(msg.common)
-        ctDict = self.messageDict[msg.common.name]
-        address = '/' + msg.common.tabpage + '/' + msg.common.name
-        
-        if list(msg.values) != ctDict[None]:
-            ctDict[None] = list(msg.values)
-            message = osc.Message(address,*ctDict[None])
-            self.send(message)
     
     def multifader_osc_cb(self, message, address):
         addParts = osc.getAddressParts(message.address)
@@ -261,14 +244,7 @@ class TabpageHandler(object):
             ctDict[None][pos] = value[0]  
         msg = touchosc_msgs.msg.MultiFader()
         msg.header.stamp = rospy.Time.now()
-        msg.common.tabpage = tabpageName
-        msg.common.name = controlName
-        msg.common.color = ctDict['color']
-        msg.common.x = int(ctDict['position']['x'])
-        msg.common.y = int(ctDict['position']['y'])
-        msg.common.width = int(ctDict['size']['w'])
-        msg.common.height = int(ctDict['size']['h'])
-        msg.common.visibility = ctDict['visibility']
+        msg.common = self.populate_common(tabpageName, controlName)
         msg.dimension = ctDict['number']
         msg.z = ctDict['z']
         msg.values = ctDict[None]
@@ -294,30 +270,12 @@ class TabpageHandler(object):
         
         msg = touchosc_msgs.msg.MultiXYPad()
         msg.header.stamp = rospy.Time.now()
-        msg.common.tabpage = tabpageName
-        msg.common.name = controlName
-        msg.common.color = ctDict['color']
-        msg.common.x = int(ctDict['position']['x'])
-        msg.common.y = int(ctDict['position']['y'])
-        msg.common.width = int(ctDict['size']['w'])
-        msg.common.height = int(ctDict['size']['h'])
-        msg.common.visibility = ctDict['visibility']
+        msg.common = self.populate_common(tabpageName, controlName)
         msg.z = ctDict['z']        
         msg.x = ctDict['x']
         msg.y = ctDict['y']
-        
-        print msg
-        
-    def xypad_ros_cb(self, msg):
-        self.common_ros_cb(msg.common)
-        ctDict = self.messageDict[msg.common.name]
-        address = '/' + msg.common.tabpage + '/' + msg.common.name
-        
-        if ctDict[None][0] != msg.x or ctDict[None][1] != msg.y:
-            ctDict[None] = [msg.x, msg.y]
-            message = osc.Message(address,*ctDict[None])
-            self.send(message)
-        
+        self.ros_publishers[controlName].publish(msg)
+            
     def xypad_osc_cb(self, message, address):
         addParts = osc.getAddressParts(message.address)
         value = message.getValues()
@@ -333,15 +291,26 @@ class TabpageHandler(object):
  
         msg = touchosc_msgs.msg.XYPad()
         msg.header.stamp = rospy.Time.now()
-        msg.common.tabpage = tabpageName
-        msg.common.name = controlName
-        msg.common.color = ctDict['color']
-        msg.common.x = int(ctDict['position']['x'])
-        msg.common.y = int(ctDict['position']['y'])
-        msg.common.width = int(ctDict['size']['w'])
-        msg.common.height = int(ctDict['size']['h'])
-        msg.common.visibility = ctDict['visibility']
+        msg.common = self.populate_common(tabpageName, controlName)
         msg.x = ctDict[None][0]
         msg.y = ctDict[None][1]
         msg.z = ctDict['z']
         self.ros_publishers[controlName].publish(msg)
+        
+    def populate_common(self, tabpageName, controlName):
+        commonMsg = touchosc_msgs.msg.TouchOSC_Common()
+        ctDict = self.messageDict[controlName]
+        commonMsg.tabpage = tabpageName
+        commonMsg.name = controlName
+        commonMsg.color = ctDict['color']
+        commonMsg.x = int(ctDict['position']['x'])
+        commonMsg.y = int(ctDict['position']['y'])
+        commonMsg.width = int(ctDict['size']['w'])
+        commonMsg.height = int(ctDict['size']['h'])
+        commonMsg.visibility = ctDict['visibility']
+        return commonMsg
+        
+        
+        
+        
+        
