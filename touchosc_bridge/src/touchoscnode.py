@@ -31,6 +31,7 @@ class TouchOSCNode(OSCNode):
 
         tabpageHandlers = {}
         for tabpage in self.tabpages:
+            rospy.loginfo("Adding Tabpage: %s"%tabpage)
             tabpageHandlers[tabpage] = TabpageHandler(self.name, self.layout, tabpage)
             tabpageHandlers[tabpage].setSender(self.sendToAll)
             self._osc_receiver.addNode(tabpage, tabpageHandlers[tabpage].osc_node)
@@ -107,6 +108,14 @@ class TabpageHandler(object):
                 msgType = touchosc_msgs.msg.MultiFader
                 ros_cb = self.multifader_ros_cb
                 osc_cb = self.multifader_osc_cb
+            elif controlType is pytouchosc.controls.XYPad:
+                msgType = touchosc_msgs.msg.XYPad
+                ros_cb = self.xypad_ros_cb
+                osc_cb = self.xypad_osc_cb
+            elif controlType is pytouchosc.controls.MultiXYPad:
+                msgType = touchosc_msgs.msg.MultiXYPad
+                ros_cb = None
+                osc_cb = self.multixypad_osc_cb
             else:
                 msgType = None
                 ros_cb = None
@@ -190,11 +199,9 @@ class TabpageHandler(object):
         self.common_ros_cb(msg.common)
         ctDict = self.messageDict[msg.common.name]
         address = '/' + msg.common.tabpage + '/' + msg.common.name
-        
-        if msg.values != ctDict[None]:
+        if list(msg.values) != ctDict[None]:
             ctDict[None] = list(msg.values)
             message = osc.Message(address,*msg.values)
-            print message
             self.send(message)
 
     def multibutton_osc_cb(self, message, address):
@@ -210,7 +217,6 @@ class TabpageHandler(object):
         else:
             x = int(addParts[2]) - 1
             y = int(addParts[3]) - 1
-            print ctDict
             ctDict[None][y + x*ctDict['dim_y']] = value[0]
         
         value = message.getValues()
@@ -235,6 +241,11 @@ class TabpageHandler(object):
         self.common_ros_cb(msg.common)
         ctDict = self.messageDict[msg.common.name]
         address = '/' + msg.common.tabpage + '/' + msg.common.name
+        
+        if list(msg.values) != ctDict[None]:
+            ctDict[None] = list(msg.values)
+            message = osc.Message(address,*ctDict[None])
+            self.send(message)
     
     def multifader_osc_cb(self, message, address):
         addParts = osc.getAddressParts(message.address)
@@ -248,7 +259,6 @@ class TabpageHandler(object):
         else:
             pos = int(addParts[2]) - 1
             ctDict[None][pos] = value[0]  
-        value = message.getValues()
         msg = touchosc_msgs.msg.MultiFader()
         msg.header.stamp = rospy.Time.now()
         msg.common.tabpage = tabpageName
@@ -262,4 +272,76 @@ class TabpageHandler(object):
         msg.dimension = ctDict['number']
         msg.z = ctDict['z']
         msg.values = ctDict[None]
+        self.ros_publishers[controlName].publish(msg)
+    
+    def multixypad_osc_cb(self, message, address):
+        addParts = osc.getAddressParts(message.address)
+        value = message.getValues()
+        
+        tabpageName = addParts[0]
+        controlName = addParts[1]
+        ctDict = self.messageDict[controlName]
+        touchNumber = int(addParts[2])
+        
+        if len(addParts) == 4:
+            ctDict['z'][touchNumber - 1] = bool(value[0])
+            if not bool(value[0]):
+                ctDict['x'][touchNumber - 1] = 0.0
+                ctDict['y'][touchNumber - 1] = 0.0
+        else:
+            ctDict['x'][touchNumber - 1] = value[0]
+            ctDict['y'][touchNumber - 1] = value[1]
+        
+        msg = touchosc_msgs.msg.MultiXYPad()
+        msg.header.stamp = rospy.Time.now()
+        msg.common.tabpage = tabpageName
+        msg.common.name = controlName
+        msg.common.color = ctDict['color']
+        msg.common.x = int(ctDict['position']['x'])
+        msg.common.y = int(ctDict['position']['y'])
+        msg.common.width = int(ctDict['size']['w'])
+        msg.common.height = int(ctDict['size']['h'])
+        msg.common.visibility = ctDict['visibility']
+        msg.z = ctDict['z']        
+        msg.x = ctDict['x']
+        msg.y = ctDict['y']
+        
+        print msg
+        
+    def xypad_ros_cb(self, msg):
+        self.common_ros_cb(msg.common)
+        ctDict = self.messageDict[msg.common.name]
+        address = '/' + msg.common.tabpage + '/' + msg.common.name
+        
+        if ctDict[None][0] != msg.x or ctDict[None][1] != msg.y:
+            ctDict[None] = [msg.x, msg.y]
+            message = osc.Message(address,*ctDict[None])
+            self.send(message)
+        
+    def xypad_osc_cb(self, message, address):
+        addParts = osc.getAddressParts(message.address)
+        value = message.getValues()
+        
+        tabpageName = addParts[0]
+        controlName = addParts[1]
+        ctDict = self.messageDict[controlName]
+ 
+        if len(addParts) == 3:
+            ctDict['z'] = bool(value[0])
+        else:
+            ctDict[None] = value
+ 
+        msg = touchosc_msgs.msg.XYPad()
+        msg.header.stamp = rospy.Time.now()
+        msg.common.tabpage = tabpageName
+        msg.common.name = controlName
+        msg.common.color = ctDict['color']
+        msg.common.x = int(ctDict['position']['x'])
+        msg.common.y = int(ctDict['position']['y'])
+        msg.common.width = int(ctDict['size']['w'])
+        msg.common.height = int(ctDict['size']['h'])
+        msg.common.visibility = ctDict['visibility']
+        msg.x = ctDict[None][0]
+        msg.y = ctDict[None][1]
+        msg.z = ctDict['z']
         self.ros_publishers[controlName].publish(msg)

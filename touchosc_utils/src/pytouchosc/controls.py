@@ -409,6 +409,20 @@ class MultiDial(Dial):
         msg[self.name][None] = [0.0] * int(self.number)
         msg[self.name]["number"] = int(self.number)
         return msg
+    
+class MultiXYPad(XYPad):
+    def getReceivableMessages(self):
+        msg = super(MultiXYPad, self).getReceivableMessages()
+        msg[self.name]['x'] = [0.0] * 5
+        msg[self.name]['y'] = [0.0] * 5
+        msg[self.name]['z'] = [False] * 5
+        del msg[self.name][None]
+        return msg
+    
+    def getSendableMessages(self):
+        msg = super(MultiXYPad, self).getSendableMessages()
+        del msg[self.name][None]
+        return msg
 
 type_class_mapping = {
                 "led":          LED,
@@ -430,7 +444,7 @@ type_class_mapping = {
                 "multitoggle":  MultiButton,
                 "multifaderv":  MultiDial,
                 "multifaderh":  MultiDial,
-                "multixy":      XYPad
+                "multixy":      MultiXYPad
                 }
 
 def test_controls():
