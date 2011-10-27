@@ -1,9 +1,6 @@
 import roslib; roslib.load_manifest('osc_bridge')
 import rospy
 
-import osc_msgs.msg
-import osc_msgs.encoding
-
 from pytouchosc.bonjour import Bonjour
 
 from twisted.internet import reactor, threads

@@ -3,26 +3,23 @@ pybonjour:
     pip:
       packages: [ pybonjour ]
       depends: [ libavahi-compat-libdnssd ] 
-  osx:
-    lion:
-      pip:
-        packages: [ pybonjour ]
+  osxbrew:
+    pip:
+      packages: [ pybonjour ]
 txosc:
   ubuntu:
     pip:
       packages: [ txosc ]
-  osx:
-    lion:
-      pip:
-        packages: [ txosc ]
+  osxbrew:
+    pip:
+      packages: [ txosc ]
 lxml:
   ubuntu:
     apt:
       packages: [ python-lxml ]
-  osx:
-    lion:
-      pip:
-        packages: [ lxml ]
+  osxbrew:
+    pip:
+      packages: [ lxml ]
 libavahi-compat-libdnssd:
   ubuntu: 
     apt:
