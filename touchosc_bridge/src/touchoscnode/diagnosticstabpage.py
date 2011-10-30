@@ -12,8 +12,138 @@ import touchosc_msgs.msg
 from abstracttabpage import AbstractTabpageHandler
 from std_msgs.msg import String
 
+class DiagMessage(object):
+    COLORS = {0: "green", 1: "yellow", 2: "red", -1: "gray"}
+    def __init__(self, name):
+        self.name = name
+        self.kvDict = {}
+        self.stamp = None
+        self.status = -1
+        self.kvDisplay = []
+    
+    def update(self, stamp, msg):
+        self.stamp = stamp
+        self.status = msg.level 
+        for value in msg.values:
+            self.kvDict[value.key] = value.value
+        self.kvDisplay = sorted(self.kvDict.keys())
+       
+    def getColor(self):
+        return self.COLORS[self.status]
+    
+    def getName(self):
+        return self.name
+    
+    def getStatus(self):
+        return self.status
+    
+    def display(self, offset = 0):
+        it = 1
+        toDisplay = []
+        for key in self.kvDisplay:
+            message=osc.Message("/diagnostics/key%i"%it,key)
+            toDisplay.append(message)
+            message=osc.Message("/diagnostics/value%i"%it, self.kvDict[key])
+            toDisplay.append(message)
+            it +=1
+            if it == 9:
+                break
+        while it < 9:
+            message=osc.Message("/diagnostics/key%i"%it,'')
+            toDisplay.append(message)
+            message=osc.Message("/diagnostics/value%i"%it,'')
+            toDisplay.append(message)
+            it+=1
+        return toDisplay
+            
+class DiagArray(object):
+    def __init__(self):
+        self.diagDict = {}
+        self.diagDisplay = []
+        self.systemStatus = DiagnosticStatus.OK
+        self.detailedDisplay = None
+        
+    def addMessage(self, msg):
+        for message in msg.status:
+            # If the message has not been seen, add it.
+            if not self.diagDict.has_key(message.name):
+                self.diagDict[message.name] = DiagMessage(message.name)
+            self.diagDict[message.name].update(msg.header.stamp, message)
+            self.systemStatus = max(self.systemStatus,message.level)
+        self.diagDisplay = sorted(self.diagDict.keys())
+    
+    def setDetailedDisplay(self, number):
+        if (number) <= len(self.diagDisplay):
+            name = self.diagDisplay[number-1]
+        else:
+            return ''
+        if self.diagDict.has_key(name):
+            self.detailedDisplay = name
+        else:
+            self.detailedDisplay = None
+            raise KeyError
+        return name
+    
+    def displayDetailed(self):
+        return self.diagDict[self.detailedDisplay].display()
+    
+    def display(self, offset = 0):
+        """
+        Refresh the list of diagnostics messages on the display
+        """
+        it = 1
+        toDisplay = []
+        for key in self.diagDisplay:
+            item = self.diagDict[key]
+            message=osc.Message("/diagnostics/dled%i/color"%it, 
+                                item.getColor())
+            toDisplay.append(message)
+            message=osc.Message("/diagnostics/dled%i"%it,1.0)
+            toDisplay.append(message)
+            message=osc.Message("/diagnostics/dlabel%i"%it,
+                                item.getName())
+            toDisplay.append(message)
+            it+=1
+        while it < 17:
+            message=osc.Message("/diagnostics/dled%i/color"%it, 'gray')
+            toDisplay.append(message)
+            message=osc.Message("/diagnostics/dled%i"%it,0.0)
+            toDisplay.append(message)
+            message=osc.Message("/diagnostics/dlabel%i"%it,'')
+            toDisplay.append(message)
+            it +=1
+        if self.detailedDisplay is not None:
+            toDisplay.extend(self.diagDict[self.detailedDisplay].display())  
+        return toDisplay
+    
+    def clearDisplay(self):
+        it = 1
+        toDisplay = []
+        while it < 17:
+            message=osc.Message("/diagnostics/dled%i/color"%it, 'gray')
+            toDisplay.append(message)
+            message=osc.Message("/diagnostics/dled%i"%it,0.0)
+            toDisplay.append(message)
+            message=osc.Message("/diagnostics/dlabel%i"%it,'')
+            toDisplay.append(message)
+            it +=1
+        toDisplay.extend(self.__clearDetailedDisplay())
+        for d in toDisplay:
+            print str(d)
+        return toDisplay
+    
+    def __clearDetailedDisplay(self):
+        it = 1
+        toDisplay = []
+        while it < 9:
+            message=osc.Message("/diagnostics/key%i"%it,' ')
+            toDisplay.append(message)
+            message=osc.Message("/diagnostics/value%i"%it,' ')
+            toDisplay.append(message)
+            it+=1
+        return toDisplay       
+                
 class DiagnosticsTabpageHandler(AbstractTabpageHandler):
-    COLORS = {0: "green", 1: "yellow", 2: "red"}
     def __init__(self, nodeName):
         super(DiagnosticsTabpageHandler, self).__init__(nodeName, "diagnostics")
         self.tabpageName = "diagnostics"
@@ -23,10 +153,6 @@ class DiagnosticsTabpageHandler(AbstractTabpageHandler):
                                         DiagnosticArray,
                                         self.diag_cb)
         
-        self.testSub = rospy.Subscriber("/test",
-                                        String,
-                                        self.test_cb)
-        
         name='darray'
         self.osc_nodes[name] = dispatch.AddressNode(name)
         self.osc_nodes[name].addCallback("*", self.darray_cb)
@@ -34,67 +160,28 @@ class DiagnosticsTabpageHandler(AbstractTabpageHandler):
         self.osc_nodes[name].addCallback("/*/*", self.darray_cb)
         self.osc_node.addNode(name, self.osc_nodes[name])
         
-        self.diagDisplayDict = {}
-        self.kvDisplayDict = {}
-        self.detailedView = None
+        self.diagnostics = DiagArray()
         
+    def setControls(self):
+        self.display(self.diagnostics.clearDisplay())
+
+    def display(self, toDisplay):
+        for message in toDisplay:
+            self.osc_send(message)
         
     def diag_cb(self, msg):
-        for status in msg.status:
-            self.msgDict[status.name] = [msg.header.stamp,status]
-            
-        it = 1
-        for name,[stamp,status] in self.msgDict.iteritems():
-            self.diagDisplayDict[it] = name
-            message=osc.Message("/diagnostics/dled%i/color"%it, self.COLORS[status.level])
-            self.osc_send(message)
-            message=osc.Message("/diagnostics/dled%i"%it,1.0)
-            self.osc_send(message)
-            message=osc.Message("/diagnostics/dlabel%i"%it,status.name)
-            self.osc_send(message)
-            it+=1
-            if status.name == self.detailedView:
-                self.display_kv(status.name)
-        while it < 17:
-            message=osc.Message("/diagnostics/dled%i/color"%it, 'gray')
-            self.osc_send(message)
-            message=osc.Message("/diagnostics/dled%i"%it,0.0)
-            self.osc_send(message)
-            message=osc.Message("/diagnostics/dlabel%i"%it,'')
-            self.osc_send(message)
-            it +=1  
+        self.diagnostics.addMessage(msg)
+        toDisplay = self.diagnostics.display()
+        self.display(toDisplay)
         
-            
     def darray_cb(self, message, address):
         addParts = osc.getAddressParts(message.address)
         value = message.getValues()
         if len(addParts) == 4:
             try:
-                self.detailedView = self.diagDisplayDict[int(addParts[3])]
-                print self.detailedView
-                self.display_kv(self.detailedView)  
+                self.diagnostics.setDetailedDisplay(int(addParts[3]))
+                self.display(self.diagnostics.displayDetailed())
             except KeyError:
                 pass
             
-    def display_kv(self, name):
-        (stamp, msg) = self.msgDict[name]
-        it = 1
-        for keyValue in msg.values:
-            message=osc.Message("/diagnostics/key%i"%it,keyValue.key)
-            self.osc_send(message)
-            message=osc.Message("/diagnostics/value%i"%it, keyValue.value)
-            self.osc_send(message)
-            it +=1
-            if it == 9:
-                break
-        while it < 9:
-            message=osc.Message("/diagnostics/key%i"%it,'')
-            self.osc_send(message)
-            message=osc.Message("/diagnostics/value%i"%it,'')
-            self.osc_send(message)
-            it+=1
-            
-            
-    def test_cb(self, msg):
-        print self.msgDict
     

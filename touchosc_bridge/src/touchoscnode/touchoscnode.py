@@ -38,6 +38,10 @@ class TouchOSCNode(OSCNode):
         self.tabpageHandlers[name].setSender(self.sendToAll)
         self._osc_receiver.addNode(name, self.tabpageHandlers[name].getOscNode())
         
+    def initializeTabpages(self):
+        for handler in self.tabpageHandlers.values():
+            handler.setControls()
+        
         
         
         

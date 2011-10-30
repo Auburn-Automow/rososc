@@ -3,6 +3,7 @@
 import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 import sys
+import time
 
 from twisted.internet import reactor
 
@@ -10,8 +11,7 @@ from touchoscnode import TouchOSCNode
 from touchoscnode import DefaultTabpageHandler
 from touchoscnode import DiagnosticsTabpageHandler
 
-from pytouchosc.layout import Layout
-from pytouchosc.tabpage import Tabpage
+import pytouchosc
 
 if __name__=="__main__":
     def start():
@@ -19,7 +19,7 @@ if __name__=="__main__":
             layoutPath = rospy.get_param("/touchosc_layout_path")
             rospy.loginfo(layoutPath)
             try:
-                layout = Layout.createFromExisting(layoutPath)
+                layout = pytouchosc.Layout.createFromExisting(layoutPath)
             except Exception as e:
                 rospy.logerr(e)
                 rospy.logerr("Layout file not found")
@@ -28,6 +28,7 @@ if __name__=="__main__":
             name = "Test"
             t = TouchOSCNode(name, port=8000)
             t.addTabpageHandler(DiagnosticsTabpageHandler(name))
+            reactor.callLater(0.5, t.initializeTabpages)
         except:
             import traceback
             traceback.print_exc()

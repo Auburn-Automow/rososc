@@ -30,5 +30,7 @@
 __author__ = "Michael Carroll <carroll.michael@gmail.com>"
 __version__ = "1.7.4"
 
-__all__ = ["bonjour", "controls", "layout", "tabpage"]
+from layout import Layout
+from tabpage import Tabpage
+from bonjour import Bonjour
 

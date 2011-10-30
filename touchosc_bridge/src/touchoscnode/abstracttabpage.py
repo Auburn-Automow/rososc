@@ -27,3 +27,9 @@ class AbstractTabpageHandler(object):
     
     def setSender(self,sender):
         self.osc_send = sender
+        
+    def setControls(self):
+        """
+        Called immedeately after tabpage is loaded.  May be used to set default values of controls.
+        """
+        pass
