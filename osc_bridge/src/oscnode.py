@@ -29,9 +29,9 @@ class OSCNode(object):
         
         #Bonjour Server
         self.bonjourServer = Bonjour(self.name, self.port, self.regtype,
-                debug=rospy.logdebug,
+                debug=rospy.loginfo,
                 info=rospy.loginfo,
-                error=rospy.logerr)
+                error=rospy.loginfo)
         reactor.callInThread(self.bonjourServer.run, daemon=True)
         
         #Twisted OSC receiver
@@ -43,7 +43,6 @@ class OSCNode(object):
           
         #Add OSC callbacks
         self._osc_receiver.addCallback("/quit", self.quit_handler)
-    
         self._osc_receiver.fallback = self.fallback   
         
     def send(self, element, client):

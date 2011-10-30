@@ -93,12 +93,17 @@ class LayoutServer(object):
     def run(self):
         self.bonjourServer.run_register()
         self.t = threading.Thread(target=self._run_http)
+        self.t.daemon = True
         self.t.start()
     
     def stop(self):
+        logging.loginfo("Shutting Down")
         self.bonjourServer.stop_register()
+        logging.loginfo("Bonjour Server Stopped")
         self.httpd.shutdown()
+        logging.loginfo("HTTPD Server Shutdown")
         self.httpd.server_close()
+        logging.loginfo("HTTPD Server Closed")
         
     def _run_http(self, ):
         try:
