@@ -27,8 +27,7 @@ if __name__=="__main__":
             
             name = "Test"
             t = TouchOSCNode(name, port=8000)
-            for tabpage in layout.getTabpageNames():
-                t.addTabpageHandler(DefaultTabpageHandler(name, layout, tabpage))
+            t.addTabpageHandler(DiagnosticsTabpageHandler(name))
         except:
             import traceback
             traceback.print_exc()

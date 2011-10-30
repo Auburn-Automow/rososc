@@ -14,6 +14,7 @@ class AbstractTabpageHandler(object):
         
         self.ros_publishers = {}
         self.ros_subscribers = {}
+        self.osc_nodes = {}
         
     def getTabpageName(self):
         return self.tabpageName
