@@ -13,6 +13,7 @@
   <depend package="touchosc_utils"/>
   <depend package="sensor_msgs" />
   <depend package="touchosc_msgs" />
+  <depend package="diagnostic_msgs" />
 
 </package>
 
