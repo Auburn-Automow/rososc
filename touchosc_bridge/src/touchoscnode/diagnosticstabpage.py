@@ -272,7 +272,6 @@ class DiagArray(object):
 class DiagnosticsTabpageHandler(AbstractTabpageHandler):
     def __init__(self, nodeName):
         super(DiagnosticsTabpageHandler, self).__init__(nodeName, "diagnostics")
-        self.tabpageName = "diagnostics"
         self.msgDict = dict()
         
         self.subTopic = "/diagnostics"
