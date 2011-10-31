@@ -13,12 +13,12 @@ from abstracttabpage import AbstractTabpageHandler
 from std_msgs.msg import String
 
 class DiagMessage(object):
-    COLORS = {0: "green", 1: "yellow", 2: "red", 3: "gray", -1: "gray"}
+    COLORS = {0: "green", 1: "yellow", 2: "red", 3: "gray"}
     def __init__(self, name):
         self.name = name
         self.kvDict = {}
         self.stamp = None
-        self.status = -1
+        self.status = 3
         self.kvDisplay = []
         self.offset = 0
     
@@ -71,6 +71,8 @@ class DiagMessage(object):
             else:
                 value = self.offset/float(self.getLength()-8)
             toDisplay.append(osc.Message("/diagnostics/kvfader",value))
+        toDisplay.append(osc.Message("/diagnostics/deviceled/color",self.COLORS[self.status]))
+        toDisplay.append(osc.Message("/diagnostics/deviceled",1.0))
         toDisplay.append(osc.Message("/diagnostics/name",self.name))
         toDisplay.append(osc.Message("/diagnostics/hardware_id",self.msg.hardware_id))
         toDisplay.append(osc.Message("/diagnostics/message",self.msg.message))
@@ -78,7 +80,7 @@ class DiagMessage(object):
         return toDisplay
             
 class DiagArray(object):
-    COLORS = {0: "green", 1: "yellow", 2: "red", 3: "gray", -1: "gray"}
+    COLORS = {0: "green", 1: "yellow", 2: "red", 3: "gray"}
     def __init__(self, subTopic):
         self.diagDict = {}
         self.diagDisplay = []
@@ -106,22 +108,29 @@ class DiagArray(object):
         return self.expandName
     
     def getNameByIndex(self, index):
+        if index is None:
+            return None
+        
         if index <= len(self.diagDisplay):
             name = self.diagDisplay[index-1]
             return name
+        
         else:
             return None    
     
     def addMessage(self, msg):
-        if (rospy.Time.now() - self.systemStatusClear).secs > 60:
-            self.systemStatus = 0
-            self.systemStatusClear = rospy.Time.now()
-        for message in msg.status:
-            # If the message has not been seen, add it.
-            if not self.diagDict.has_key(message.name):
-                self.diagDict[message.name] = DiagMessage(message.name)
-            self.diagDict[message.name].update(msg.header.stamp, message)
-            self.systemStatus = max(self.systemStatus,message.level)
+        if msg is not None:
+            if (rospy.Time.now() - self.systemStatusClear).secs > 60:
+                self.systemStatus = 0
+                self.systemStatusClear = rospy.Time.now()
+            
+            for message in msg.status:
+                # If the message has not been seen, add it.
+                if not self.diagDict.has_key(message.name):
+                    self.diagDict[message.name] = DiagMessage(message.name)
+                self.diagDict[message.name].update(msg.header.stamp, message)
+                if message.level != 3:
+                    self.systemStatus = max(self.systemStatus,message.level)   
         if self.subTopic == "/diagnostics_agg":
             self.diagDisplay = []
             if self.expandName:
@@ -140,6 +149,11 @@ class DiagArray(object):
         return self.COLORS[self.systemStatus]
     
     def setDetailedDisplay(self, number):
+        if number is None:
+            self.detailedDisplay = None
+            self.detailedDisplayIndex = None
+            return ''
+        
         if (number) <= len(self.diagDisplay):
             name = self.diagDisplay[number-1]
         else:
@@ -151,6 +165,7 @@ class DiagArray(object):
         else:
             self.detailedDisplay = None
             raise KeyError
+        
         return name
     
     def getDetailedDisplayIndex(self):
@@ -163,8 +178,23 @@ class DiagArray(object):
             val = None
         return val
     
-    def displayDetailed(self):
-        return self.diagDict[self.detailedDisplay].display()
+    def displayDetailed(self,nofader=True):
+        it = 1
+        toDisplay = []
+        for key in self.diagDisplay[self.offset:]:
+            if key == self.getExpandName():
+                message=osc.Message("/diagnostics/dlabel%i/color"%it,"orange")
+            elif key == self.detailedDisplay:
+                message=osc.Message("/diagnostics/dlabel%i/color"%it,"blue")
+            else:
+                message=osc.Message("/diagnostics/dlabel%i/color"%it,"gray")
+            toDisplay.append(message)
+            it+=1
+        if self.detailedDisplay is not None:
+            toDisplay.extend(self.diagDict[self.detailedDisplay].display(nofader))
+        else:
+            toDisplay.extend(self.__clearDetailedDisplay())
+        return toDisplay
     
     def display(self, nofader = True):
         """
@@ -197,8 +227,7 @@ class DiagArray(object):
             else:
                 value = self.offset/float(self.getLength()-16)
             toDisplay.append(osc.Message("/diagnostics/dfader",value))  
-        if self.detailedDisplay is not None:
-            toDisplay.extend(self.diagDict[self.detailedDisplay].display())  
+        toDisplay.extend(self.displayDetailed(nofader))
         return toDisplay
     
     def clearDisplay(self):
@@ -211,10 +240,14 @@ class DiagArray(object):
             toDisplay.append(message)
             message=osc.Message("/diagnostics/dlabel%i"%it,'')
             toDisplay.append(message)
+            message=osc.Message("/diagnostics/dlabel%i/color"%it,"gray")
+            toDisplay.append(message)
             it +=1
         toDisplay.append(osc.Message("/diagnostics/dfader",0.0))
         toDisplay.append(osc.Message("/diagnostics/statusled",0.0))
         toDisplay.append(osc.Message("/diagnostics/rostime",""))
+        toDisplay.append(osc.Message("/diagnostics/pausetime",""))
+        toDisplay.append(osc.Message("/diagnostics/pause",0.0))
         toDisplay.extend(self.__clearDetailedDisplay())
         return toDisplay
     
@@ -227,10 +260,12 @@ class DiagArray(object):
             message=osc.Message("/diagnostics/value%i"%it,' ')
             toDisplay.append(message)
             it+=1
-        toDisplay.append(osc.Message("/diagnostics/name","Name"))
-        toDisplay.append(osc.Message("/diagnostics/hardware_id","Hardware ID"))
-        toDisplay.append(osc.Message("/diagnostics/message","Message"))
-        toDisplay.append(osc.Message("/diagnostics/stamp","Stamp"))
+        toDisplay.append(osc.Message("/diagnostics/deviceled/color","gray"))
+        toDisplay.append(osc.Message("/diagnostics/deviceled",0.0))
+        toDisplay.append(osc.Message("/diagnostics/name",""))
+        toDisplay.append(osc.Message("/diagnostics/hardware_id",""))
+        toDisplay.append(osc.Message("/diagnostics/message",""))
+        toDisplay.append(osc.Message("/diagnostics/stamp",""))
         toDisplay.append(osc.Message("/diagnostics/kvfader",0.0))
         return toDisplay       
                 
@@ -262,7 +297,11 @@ class DiagnosticsTabpageHandler(AbstractTabpageHandler):
         
         self.osc_node.addCallback('/diagsw',self.change_subscriber)
         
+        self.osc_node.addCallback('/pause',self.pause_cb)
+        
         self.diagnostics = DiagArray(self.subTopic)
+        
+        self.paused = False
         
     def setControls(self):
         self.display(self.diagnostics.clearDisplay())
@@ -274,7 +313,11 @@ class DiagnosticsTabpageHandler(AbstractTabpageHandler):
             self.osc_send(message)
         
     def diag_cb(self, msg):
-        self.diagnostics.addMessage(msg)
+        if self.paused:
+            self.diagnostics.addMessage(None)
+            self.display([osc.Message("/diagnostics/pausetime", str((rospy.Time.now()-self.paused).secs))])
+        else:
+            self.diagnostics.addMessage(msg)
         toDisplay = self.diagnostics.display(nofader=False)
         self.display(toDisplay)
         self.display([osc.Message("/diagnostics/statusled/color",self.diagnostics.getSystemStatus()),
@@ -292,21 +335,23 @@ class DiagnosticsTabpageHandler(AbstractTabpageHandler):
                     detailedDisplay = self.diagnostics.getDetailedDisplay()
                     if detailedDisplay is not None:
                         detailedDisplay.setOffset(0)
-                        self.display(detailedDisplay.display(nofader=False))
                 except KeyError:
                     pass
             else:
                 if self.diagnostics.getDetailedDisplayIndex() == index:
                     if self.diagnostics.getNameByIndex(index) == self.diagnostics.getExpandName():
                         self.diagnostics.setExpandName(None)
+                        self.diagnostics.setDetailedDisplay(None)
                     elif not self.diagnostics.getExpandName():
                         self.diagnostics.setExpandName(self.diagnostics.getNameByIndex(index))
+                        self.diagnostics.setDetailedDisplay(None)
                 else:
                     self.diagnostics.setDetailedDisplay(index)
                     detailedDisplay = self.diagnostics.getDetailedDisplay()
                     if detailedDisplay is not None:
                         detailedDisplay.setOffset(0)
-                        self.display(detailedDisplay.display(nofader=False))
+            toDisplay = self.diagnostics.display(nofader=False)
+            self.display(toDisplay)
             
     def kv_updown_cb(self, message, address):
         detailedDisplay = self.diagnostics.getDetailedDisplay()
@@ -369,4 +414,19 @@ class DiagnosticsTabpageHandler(AbstractTabpageHandler):
                                             DiagnosticArray,
                                             self.diag_cb)
             self.setControls()
+            self.paused = False
+            self.display([osc.Message("/diagnostics/pause",0.0)])
+            
+    def pause_cb(self, message, address):
+        addParts = osc.getAddressParts(message.address)
+        value = message.getValues()
+        if value[0] == 0.0:
+            self.paused = False
+            self.display([osc.Message("/diagnostics/pause",0.0)])
+            self.display([osc.Message("/diagnostics/pausetime","")])
+        if value[0] == 1.0:
+            self.paused = rospy.Time.now()
+            self.display([osc.Message("/diagnostics/pause",1.0)])
+            
+        
         
