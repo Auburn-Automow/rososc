@@ -2,6 +2,7 @@ import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 
 from sensor_msgs.msg import Imu
+from std_msgs.msg import Empty
 
 from txosc import osc
 from txosc import dispatch
@@ -16,6 +17,10 @@ class TouchOSCNode(OSCNode):
         # Handle the accelerometer data from the iPad
         self._osc_receiver.addCallback("/accxyz", self.accel_cb)
         self.accel_pub = rospy.Publisher(name + '/accel', Imu)
+        self.vibrate_sub = rospy.Subscriber(name + '/vibrate', Empty,
+                                            self.vibrateCallback)
+
+        self._osc_receiver.addCallback("/*",self.tabPageSwitchCallback)
 
         self.tabpageHandlers = {}
     
@@ -38,11 +43,23 @@ class TouchOSCNode(OSCNode):
         self.tabpageHandlers[name].setSender(self.sendToAll,
                                              self.sendToClient,
                                              self.sendToAllOthers)
-        self._osc_receiver.addNode(name, self.tabpageHandlers[name].getOscNode())
+        tpOscNode = self.tabpageHandlers[name].getOscNode()
+        self._osc_receiver.addNode(name, tpOscNode)
         
+    def tabPageSwitchCallback(self, addressList, valueList, sendAddress):
+        tabpage = addressList[0]
+        if self.tabpageHandlers.has_key(tabpage):
+            self.tabpageHandlers[tabpage].tabpageActiveCallback(sendAddress)
+        for page, handler in self.tabpageHandlers.iteritems():
+            if page != tabpage:
+                handler.tabpageClosedCallback(sendAddress)
+        
+    def vibrateCallback(self, msg):
+        self.sendToAll(osc.Message("/vibrate"))
+    
     def initializeTabpages(self):
         for handler in self.tabpageHandlers.values():
-            handler.setControls()
+            handler.initializeTabpage()
     
     def bonjourClientCallback(self, clients):
         if type(clients) is not dict:

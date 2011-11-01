@@ -85,7 +85,13 @@ class Bonjour():
         @return: List of clients currently active on the network
         """
         with self.clientLock:
-            return copy.copy(self.clients)
+            return self.__getClients()
+    
+    def __getClients(self):
+        ipDict = dict([((self.clients[k]["ip"], self.clients[k]["port"]), k) 
+                       for k in self.clients.keys()])
+        return ipDict
+        
         
     def setClientCallback(self, callback):
         """
@@ -196,7 +202,8 @@ class Bonjour():
         Callback used by the run_regsiter routine.
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
-            self.info("Bonjour Service Registered at %s" % (self.fullname))
+            self.info("Bonjour Service Registered at %s" % 
+                      (self.fullname.decode('utf-8')))
 
     def query_record_callback(self, sdRef, flags, interfaceIndex, errorCode,
                               fullname, rrtype, rrclass, rdata, ttl):
@@ -212,7 +219,7 @@ class Bonjour():
                 if self.clients.has_key(name):
                     self.clients[name]["ip"] = socket.inet_ntoa(rdata)
                     if self.client_callback:
-                        self.client_callback(self.clients)
+                        self.client_callback(self.__getClients())
                 else:
                     self.debug("Query Record Failed on: %s"%name)
             self.queried.append(True)
@@ -228,7 +235,7 @@ class Bonjour():
                 if self.clients.has_key(hosttarget.decode('utf-8')):
                     del self.clients[hosttarget.decode('utf-8')]
                     if self.client_callback:
-                        self.client_callback(self.clients)
+                        self.client_callback(self.__getClients())
 
    
     def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, 
@@ -314,6 +321,9 @@ class Bonjour():
         finally:
             resolve_sdRef.close()
 
+def client_callback(clients):
+    logging.loginfo("Client List Updated: " + str(clients))
+
 def main(argv, stdout):
     """
     Main function for when the script gets called on the command line.  Takes a 
@@ -345,11 +355,13 @@ def main(argv, stdout):
     elif options.verbosity == 1:
         osc_bonjour.debug = logging.logquiet
 
+    osc_bonjour.setClientCallback(client_callback)
+
     osc_bonjour.run()
     import time
     try:
         while True:
-            time.sleep(5)
+            time.sleep(1)
     except KeyboardInterrupt:
         osc_bonjour.shutdown()
         sys.exit(0)

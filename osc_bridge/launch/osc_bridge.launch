@@ -3,5 +3,6 @@
         <param name="name" value="ROS OSC Service"/>
         <param name="port" value="9000"/>
         <param name="regtype" value="_osc._udp"/>
+        <param name="print_fallback" value="True" type="bool"/>
     </node>
 </launch>

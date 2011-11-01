@@ -15,6 +15,9 @@
   <depend package="touchosc_msgs" />
   <depend package="diagnostic_msgs" />
 
+  <export>
+      <rosdoc config="rosdoc.yaml" />
+  </export>
 </package>
 
 

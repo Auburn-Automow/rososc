@@ -44,7 +44,7 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         self.masterOsc = None
         reactor.callLater(1.0/self.minPublishFreq, self.publish_cmd)
         
-    def setControls(self):
+    def initializeTabpage(self):
         messageList = []
         messageList.append(osc.Message("/teleop/xy",0.0,0.0))
         messageList.append(osc.Message("/teleop/w",0.0))
@@ -53,78 +53,68 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         self.oscSendToAll(osc.Bundle(messageList))
         self.zero_command()
         
+    def zero_command(self):
+        self.cmd.linear.x = 0.0
+        self.cmd.linear.y = 0.0
+        self.cmd.angular.z = 0.0    
+        
     def publish_cmd(self):
         self.pub.publish(self.cmd)
         reactor.callLater(1.0/self.minPublishFreq, self.publish_cmd)
     
-    def xypad_callback(self, message, address):
-        addParts = osc.getAddressParts(message.address)
-        values = message.getValues()
+    def xypad_callback(self, addressList, valueList, sendAddress):
         if self.masterOsc:
             # Is this the current master?
-            if address[0] == self.masterOsc[1]:
-                if len(addParts) == 2:
-                    message = osc.Message("/teleop/xy",values[0], values[1])
+            if sendAddress[0] == self.masterOsc[0][0]:
+                if len(addressList) == 2:
+                    message = osc.Message("/teleop/xy",*valueList)
                     self.oscSendToAllOthers(message, self.masterOsc[0])
                     vx = self.max_run_vx if self.running else self.max_vx
                     vy = self.max_run_vy if self.running else self.max_vy
-                    self.cmd.linear.x = max(min(values[0] * vx,vx),-vx)
-                    self.cmd.linear.y = max(min(values[1] * vy,vy),-vy)
-                elif values[0] == 0.0:
+                    self.cmd.linear.x = max(min(valueList[0] * vx,vx),-vx)
+                    self.cmd.linear.y = max(min(valueList[1] * vy,vy),-vy)
+                elif valueList[0] == 0.0:
                     self.cmd.linear.x = 0.0
                     self.cmd.linear.y = 0.0
                 self.pub.publish(self.cmd)
         
-    def w_callback(self, message, address):
-        addParts = osc.getAddressParts(message.address)
-        values = message.getValues()
+    def w_callback(self, addressList, valueList, sendAddress):
         if self.masterOsc:
-            # Is this the current master?
-            if address[0] == self.masterOsc[1]:
-                if len(addParts) == 2:
-                    message = osc.Message("/teleop/w",values[0])
+            if sendAddress[0] == self.masterOsc[0][0]:
+                if len(addressList) == 2:
+                    message = osc.Message("/teleop/w",valueList[0])
                     self.oscSendToAllOthers(message, self.masterOsc[0])
                     vw = self.max_run_vw if self.running else self.max_vw
-                    self.cmd.angular.z = max(min(values[0] * vw,vw),-vw)
-                elif values[0] == 0.0:
+                    self.cmd.angular.z = max(min(valueList[0] * vw,vw),-vw)
+                elif valueList[0] == 0.0:
                     self.cmd.angular.z = 0.0
                 self.pub.publish(self.cmd)
         
-    def control_callback(self, message, address):
-        addParts = osc.getAddressParts(message.address)
-        values = message.getValues()
-        if len(addParts) == 2:
-            for clientName,clientAddress in self.clients.iteritems():
-                if (clientAddress["ip"] == address[0] 
+    def control_callback(self, addressList, valueList, sendAddress):
+        if len(addressList) == 2:
+            for client in self.clients.iterkeys():
+                if (client[0] == sendAddress[0] 
                         and self.masterOsc == None
-                        and values[0] == 1.0):
-                    self.masterOsc = [clientName, clientAddress["ip"]]
-                    message = osc.Message("/teleop/master",
-                                          str(clientName.split(".")[0]))
+                        and valueList[0] == 1.0):
+                    self.masterOsc = [client, 
+                                      str(self.clients[client].split(".")[0])]
+                    message = osc.Message("/teleop/master",self.masterOsc[1])
                     self.oscSendToAll(message)
                     message = osc.Message("/teleop/control",1.0)
-                    self.oscSendToClient(message,clientName)
-                elif(clientAddress["ip"] == address[0]
-                        and values[0] == 0.0):
+                    self.oscSendToClient(message,client)
+                elif (client[0] == sendAddress[0]
+                        and valueList[0] == 0.0):
                     self.masterOsc = None
-                    self.setControls()
+                    self.initializeTabpage()
                     
-    def turbo_callback(self, message, address):
-        addParts = osc.getAddressParts(message.address)
-        values = message.getValues()
-        if self.masterOsc and len(addParts) == 2:
-            if address[0] == self.masterOsc[1]:
-                if len(addParts) == 2 and values[0] == 1.0:
-                    message = osc.Message("/teleop/turbo",values[0])
+    def turbo_callback(self, addressList, valueList, sendAddress):
+        if self.masterOsc and len(addressList) == 2:
+            if sendAddress[0] == self.masterOsc[0][0]:
+                if len(addressList) == 2 and valueList[0] == 1.0:
+                    message = osc.Message("/teleop/turbo",valueList[0])
                     self.oscSendToAll(message)
                     self.running = True
-                elif values[0] == 0.0:
-                    message = osc.Message("/teleop/turbo",values[0])
+                elif valueList[0] == 0.0:
+                    message = osc.Message("/teleop/turbo",valueList[0])
                     self.oscSendToAll(message)
                     self.running = False
-            
-    def zero_command(self):
-        self.cmd.linear.x = 0.0
-        self.cmd.linear.y = 0.0
-        self.cmd.angular.z = 0.0
-                    
