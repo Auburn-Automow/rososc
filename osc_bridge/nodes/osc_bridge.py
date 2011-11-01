@@ -11,7 +11,6 @@ from oscnode import OSCNode
 if __name__=="__main__":
     def start():
         try:
-            layoutPath = rospy.get_param("/touchosc_layout_path")
             OSCNode(name="Test", port=8000)
         except:
             import traceback

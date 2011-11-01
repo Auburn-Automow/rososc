@@ -35,13 +35,25 @@ class TouchOSCNode(OSCNode):
         name = tabpageHandler.getTabpageName()
         rospy.loginfo("Adding Tabpage: %s"%name)
         self.tabpageHandlers[name] = tabpageHandler
-        self.tabpageHandlers[name].setSender(self.sendToAll)
+        self.tabpageHandlers[name].setSender(self.sendToAll,
+                                             self.sendToClient,
+                                             self.sendToAllOthers)
         self._osc_receiver.addNode(name, self.tabpageHandlers[name].getOscNode())
         
     def initializeTabpages(self):
         for handler in self.tabpageHandlers.values():
             handler.setControls()
-        
+    
+    def bonjourClientCallback(self, clients):
+        if type(clients) is not dict:
+            raise ValueError("Bonjour Client Callback requires dict type")
+        else:
+            with self.clientsLock:
+                self.clients = clients
+            rospy.logdebug("New Client Dictionary: %s"%clients)
+            for tabpage in self.tabpageHandlers.itervalues():
+                tabpage.updateClients(clients)
+                
         
         
         

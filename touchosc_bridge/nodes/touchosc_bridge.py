@@ -10,15 +10,17 @@ from twisted.internet import reactor
 from touchoscnode import TouchOSCNode
 from touchoscnode import DefaultTabpageHandler
 from touchoscnode import DiagnosticsTabpageHandler
+from touchoscnode import TeleopTabpageHandler
 
 import pytouchosc
 
 if __name__=="__main__":
     def start():
         try:         
-            name = "Test"
+            name = "TouchOscBridge"
             t = TouchOSCNode(name, port=8000)
             t.addTabpageHandler(DiagnosticsTabpageHandler(name))
+            t.addTabpageHandler(TeleopTabpageHandler(name))
             reactor.callLater(0.5, t.initializeTabpages)
         except:
             import traceback

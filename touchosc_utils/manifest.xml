@@ -8,7 +8,7 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/osc_utils</url>
-  <rosdep name="rospy" />
+  <depend package="rospy" />
 
   <rosdep name="pybonjour" />
   <rosdep name="lxml" />

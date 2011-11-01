@@ -1,0 +1,19 @@
+<launch>
+    <node pkg="touchosc_bridge" type="touchosc_bridge.py" name="touchosc_bridge" output="screen">
+        <param name="name" value="ROS OSC Service"/>
+        <param name="port" value="9000"/>
+        <param name="regtype" value="_osc._udp"/>
+        <param name="max_vx" value="0.6"/>
+        <param name="max_vy" value="0.6"/>
+        <param name="max_vw" value="0.8"/>
+        <param name="max_run_vx" value="1.0"/>
+        <param name="max_run_vy" value="1.0"/>
+        <param name="max_run_vw" value="1.0"/>
+        <param name="min_freq" value="5"/>
+        <param name="run" value="False" type="bool" />
+    </node>
+    <node pkg="touchosc_utils" type="osc_layoutserver" name="osc_layoutserver">
+        <param name="layout_path" value="$(find touchosc_bridge)/layouts/teleop.touchosc"/>
+        <param name="name" value="teleop.touchosc"/>
+    </node>
+</launch>

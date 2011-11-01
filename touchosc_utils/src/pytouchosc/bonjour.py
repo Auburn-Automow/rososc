@@ -59,8 +59,8 @@ class Bonjour():
         self.fullname = pybonjour.DNSServiceConstructFullName(self.name,
                                                               self.regtype,
                                                               'local.')
-        # Sometimes the fullname doesn't come out with a trailing period. This will 
-        # cause comparisons in the browse/resolve/query callbacks to fail.
+        # Sometimes the fullname doesn't come out with a trailing period. This 
+        # will cause comparisons in the browse/resolve/query callbacks to fail.
         if not self.fullname.endswith(u'.'):
             self.fullname += u'.'
 
@@ -70,11 +70,12 @@ class Bonjour():
         self._isBrowserRunning = False
         self._isRegisterRunning = False
         #: Dictionary of clients detected by the Bonjour browser.  The browser
-        # will maintain a list of the clients that are currently active, and will
-        # prune clients as they leave the network.
+        # will maintain a list of the clients that are currently active, and 
+        # will prune clients as they leave the network.
         self.clients = dict()
         #: Lock for modifying the dictionary of clients.
         self.clientLock = threading.Lock()
+        self.client_callback = None
 
     def getClients(self):
         """
@@ -85,6 +86,14 @@ class Bonjour():
         """
         with self.clientLock:
             return copy.copy(self.clients)
+        
+    def setClientCallback(self, callback):
+        """
+        Set a callback for when clients are added/removed from the client list
+        
+        Callback signature is: callback(clientDict)
+        """
+        self.client_callback = callback
         
     def run_browser(self, daemon = False):
         """
@@ -144,7 +153,7 @@ class Bonjour():
         Routine for browsing the network for matching clients of type "regtype"
         """
         browse_sdRef = pybonjour.DNSServiceBrowse(regtype=self.regtype,
-                                                       callBack=self.browse_callback)
+                                                  callBack=self.browse_callback)
         self.debug("Browser Service Started")
         try:
             try:
@@ -199,14 +208,17 @@ class Bonjour():
             if not fullname.endswith(u'.'):
                 fullname += u'.'
             with self.clientLock:
-                if self.clients.has_key(fullname.decode('utf-8')):
-                    self.clients[fullname.decode('utf-8')]["ip"] = socket.inet_ntoa(rdata)
+                name = fullname.decode('utf-8')
+                if self.clients.has_key(name):
+                    self.clients[name]["ip"] = socket.inet_ntoa(rdata)
+                    if self.client_callback:
+                        self.client_callback(self.clients)
                 else:
-                    self.debug("Client not found")
+                    self.debug("Query Record Failed on: %s"%name)
             self.queried.append(True)
 
-    def removed_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
-                         hosttarget, port, txtRecord):
+    def removed_callback(self, sdRef, flags, interfaceIndex, errorCode, 
+                         fullname, hosttarget, port, txtRecord):
         """
         Callback for removing hosts that have been detected through the browse 
         routine.
@@ -215,10 +227,12 @@ class Bonjour():
             with self.clientLock:
                 if self.clients.has_key(hosttarget.decode('utf-8')):
                     del self.clients[hosttarget.decode('utf-8')]
+                    if self.client_callback:
+                        self.client_callback(self.clients)
 
    
-    def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
-                         hosttarget, port, txtRecord):
+    def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, 
+                         fullname, hosttarget, port, txtRecord):
         """
         Callback for resolving hosts that have been detected through the browse 
         routine.
@@ -230,15 +244,14 @@ class Bonjour():
             else:
                 localhost = False
             with self.clientLock:
-                if not self.clients.has_key(hosttarget.decode('utf-8')) and not localhost:
-                    self.clients[hosttarget.decode('utf-8')] = {"port":port}
-
+                name = hosttarget.decode('utf-8')
+                if not self.clients.has_key(name) and not localhost:
+                    self.clients[name] = {"port":port}
             query_sdRef = \
                     pybonjour.DNSServiceQueryRecord(interfaceIndex=interfaceIndex,
                                                     fullname=hosttarget,
                                                     rrtype=pybonjour.kDNSServiceType_A,
                                                     callBack=self.query_record_callback)
-
             try:
                 while not self.queried:
                     ready = select.select([query_sdRef], [], [], self.timeout)
@@ -250,20 +263,18 @@ class Bonjour():
                     self.queried.pop()
             finally:
                 query_sdRef.close()
-
             self.resolved.append(True)
         else:
             self.error("Resolve failed with code: %s" % errorCode)
 
-    def browse_callback(self, sdRef, flags, interfaceIndex, errorCode, serviceName,
-                        regtype, replyDomain):
+    def browse_callback(self, sdRef, flags, interfaceIndex, errorCode, 
+                        serviceName, regtype, replyDomain):
         """
         Callback for browsing hosts of type "regtype" on the network.
         """
         if errorCode != pybonjour.kDNSServiceErr_NoError:
             return
         if not (flags & pybonjour.kDNSServiceFlagsAdd):
-            self.debug("Service Removed %s" % (serviceName))
             resolve_sdRef = pybonjour.DNSServiceResolve(0,
                                                         interfaceIndex,
                                                         serviceName,
@@ -291,7 +302,6 @@ class Bonjour():
                                                     regtype,
                                                     replyDomain,
                                                     self.resolve_callback)
-
         try:
             while not self.resolved:
                 ready = select.select([resolve_sdRef], [], [], self.timeout)
@@ -303,7 +313,6 @@ class Bonjour():
                 self.resolved.pop()
         finally:
             resolve_sdRef.close()
-
 
 def main(argv, stdout):
     """
@@ -341,8 +350,6 @@ def main(argv, stdout):
     try:
         while True:
             time.sleep(5)
-            print osc_bonjour.getClients()
-            pass
     except KeyboardInterrupt:
         osc_bonjour.shutdown()
         sys.exit(0)

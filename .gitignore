@@ -3,3 +3,7 @@ bin
 lib
 *.pyc
 msg_gen
+.cproject
+.project
+.pydevproject
+cmake_install.cmake
