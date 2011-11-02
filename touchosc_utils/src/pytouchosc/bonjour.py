@@ -88,8 +88,12 @@ class Bonjour():
             return self.__getClients()
     
     def __getClients(self):
-        ipDict = dict([((self.clients[k]["ip"], self.clients[k]["port"]), k) 
-                       for k in self.clients.keys()])
+        ipDict = dict()
+        for k in self.clients.iterkeys():
+            try:
+                ipDict[(self.clients[k]["ip"], self.clients[k]["port"])] = k
+            except KeyError:
+                pass
         return ipDict
         
         
