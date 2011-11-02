@@ -59,7 +59,6 @@ class AbstractTabpageHandler(object):
     def setSender(self, sendToAll, sendToClient, sendToAllOthers):
         """
         Set sender functions for the tabpage
-        
         """
         self.oscSendToClient = sendToClient
         self.oscSendToAll = sendToAll
@@ -103,7 +102,7 @@ class AbstractTabpageHandler(object):
         """
         Callback when a client switches to this tabpage.
         """
-        if client not in self.activeClients:
+        if client[0] not in self.activeClients:
             self.activeClients.add(client[0])
     
     def tabpageClosedCallback(self, client):
@@ -111,8 +110,8 @@ class AbstractTabpageHandler(object):
         Callback when a client switches to any tabpage that is 
         not this one.
         """
-        if client in self.activeClients:
-            self.activeClients.discard(client[0])
+        if client[0] in self.activeClients:
+            self.activeClients.remove(client[0])
     
     def addOscCallback(self, name, callback):
         self.osc_nodes[name] = dispatch.AddressNode(name)

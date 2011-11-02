@@ -95,6 +95,17 @@ class TouchOSCNode(OSCNode):
         tpOscNode = self.tabpageHandlers[name].getOscNode()
         self._osc_receiver.addNode(name, tpOscNode)
         
+    def addTabpageAlias(self, tabpageAlias, tabpageHandler):
+        name = tabpageHandler.getTabpageName()
+        rospy.loginfo("Adding %s alias to %s"%(tabpageAlias, name))
+        self.tabpageHandlers[name] = tabpageHandler
+        tpOscNode = self.tabpageHandlers[name].getOscNode()
+        self._osc_receiver.addNode(tabpageAlias, tpOscNode)
+        print self._osc_receiver.getCallbacks("/teleopipod")
+        
+    def getTabpageHandlerByName(self, name):
+        return self.tabpageHandlers[name]
+        
     def tabPageSwitchCallback(self, addressList, valueList, sendAddress):
         tabpage = addressList[0]
         if tabpage != 'ping':
