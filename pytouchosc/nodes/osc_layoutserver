@@ -32,7 +32,7 @@
 
 __author__ = "Michael Carroll <carroll.michael@gmail.com>"
 
-import roslib; roslib.load_manifest('touchosc_utils')
+import roslib; roslib.load_manifest('pytouchosc')
 import rospy
 
 from pytouchosc.layoutserver import LayoutServer

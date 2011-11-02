@@ -1,13 +1,13 @@
 <package>
-  <description brief="touchosc_utils">
+  <description brief="pytouchosc">
 
-     touchosc_utils
+     pytouchosc
 
   </description>
   <author>Michael Carroll</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/osc_utils</url>
+  <url>http://ros.org/wiki/pytouchosc</url>
   <depend package="rospy" />
 
   <rosdep name="pybonjour" />
