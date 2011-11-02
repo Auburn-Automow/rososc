@@ -4,6 +4,8 @@ from txosc import osc
 from txosc import dispatch
 from txosc import async
 
+from diagnostic_msgs.msg import DiagnosticStatus, KeyValue
+
 class AbstractTabpageHandler(object):
     """
     Base class for all TabpageHandlers.  In order to start creating your own Tabpage and handler,
@@ -20,19 +22,26 @@ class AbstractTabpageHandler(object):
        - Approximately 0.5 seconds after the last Tabpage is added, setControls is called
             (useful for clearing a tabpage, or setting it to some defaults)
     """
-    def __init__(self, nodeName, tabpageName):
+    def __init__(self, nodeName, tabpageName, tabpageAlias=[]):
         """
         Initialize a TabpageHandler object.
         
         @type nodeName: str
         @param nodeName: Name of ROS node to be used as a prefix for subscribers and publishers
         @type tabpageName: str
-        @param tabpageName:  
+        @param tabpageName:  Name of the tabpage
+        @param tabpageAlias: List of aliases for the tabpage
         """
         self.nodeName = nodeName
         self.tabpageName = tabpageName
+        self.alias = tabpageAlias
         
         self.osc_node = dispatch.AddressNode(self.tabpageName)
+        self.alias_nodes = {}
+        
+        for alias in tabpageAlias:
+            self.alias_nodes[alias] = dispatch.AddressNode(alias)
+            
         self.osc_send = None
         self.oscSendToClient = None
         self.oscSendToAll = None
@@ -41,8 +50,7 @@ class AbstractTabpageHandler(object):
         self.ros_publishers = {}
         self.ros_subscribers = {}
         self.osc_nodes = {}
-        self.clients = {}
-        self.activeClients = set()
+        self.clients = None
         
     def getTabpageName(self):
         return self.tabpageName
@@ -53,8 +61,16 @@ class AbstractTabpageHandler(object):
     def getOscNode(self):
         return self.osc_node
     
-    def updateClients(self, clients):
-        self.clients = clients
+    def getAliasNodes(self):
+        return self.alias_nodes
+        
+    def updateDiagnostics(self):
+        tabpageStatus = DiagnosticStatus()
+        tabpageStatus.level = tabpageStatus.OK
+        tabpageStatus.name = self.tabpageName
+        tabpageStatus.hardware_id = self.nodeName
+        tabpageStatus.message = "OK"
+        return tabpageStatus
     
     def setSender(self, sendToAll, sendToClient, sendToAllOthers):
         """
@@ -119,5 +135,7 @@ class AbstractTabpageHandler(object):
         self.osc_nodes[name].addCallback("/*", callback)
         self.osc_nodes[name].addCallback("/*/*", callback)
         self.osc_node.addNode(name, self.osc_nodes[name])
+        for alias, aliasNode in self.alias_nodes.iteritems():
+            aliasNode.addNode(alias, self.osc_nodes[name])
         
         

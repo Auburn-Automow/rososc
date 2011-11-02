@@ -19,7 +19,9 @@ if __name__=="__main__":
         try:         
             name = "TouchOscBridge"
             t = TouchOSCNode(name, port=8000)
-            t.addTabpageHandler(TeleopTabpageHandler(name))
+            t.addTabpageHandler(TeleopTabpageHandler(name,"teleop",
+                                                     ["ipod/teleop","ipad/teleop"]))
+            print t._osc_receiver._childNodes
             reactor.callLater(0.5, t.initializeTabpages)
         except:
             import traceback

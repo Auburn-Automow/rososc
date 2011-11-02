@@ -11,6 +11,7 @@
         <param name="max_run_vw" value="1.0"/>
         <param name="min_freq" value="5"/>
         <param name="run" value="False" type="bool" />
+        <param name="print_fallback" value="True" type="bool" />
     </node>
     <node pkg="pytouchosc" type="osc_layoutserver" name="osc_layoutserver">
         <param name="layout_path" value="$(find touchosc_bridge)/layouts/teleop.touchosc"/>
