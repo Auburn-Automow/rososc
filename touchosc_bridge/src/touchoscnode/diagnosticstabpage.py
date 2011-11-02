@@ -176,14 +176,18 @@ class DiagnosticsTabpageHandler(AbstractTabpageHandler):
         # self.osc_node.addCallback('/dup',self.d_updown_cb)
         # self.osc_node.addCallback('/ddown',self.d_updown_cb)
         # self.osc_node.addCallback('/dfader',self.d_updown_cb)
-        self.osc_node.addCallback('/diagsw',self.diagsw_cb)
+        self.addOscCallback('diagsw',self.diagsw_cb)
         # self.osc_node.addCallback('/pause',self.pause_cb)
         #=======================================================================
         
         self.diagArray = DiagArray("/diagnostics")
         self.diagAggArray = DiagArray("/diagnostics_agg")
+        self.diagClients = {}
         
     def initializeTabpage(self):
+        rospy.loginfo("Diagnostics Tabpage Initialized")
+        rospy.loginfo("\t Subscribing to: /diagnostics")
+        rospy.loginfo("\t Subscribing to: /diagnostics_agg")
         self.oscSendToAll(osc.Message("/diagnostics/diaglbl","Start"))
         self.oscSendToAll(osc.Message("/diagnostics/statusled",1.0))
         
@@ -193,9 +197,15 @@ class DiagnosticsTabpageHandler(AbstractTabpageHandler):
             self.diagArray.addMessage(msg)
         elif cHeader['topic'] == '/diagnostics_agg':
             self.diagAggArray.addMessage(msg)
-        
+            
     def diagsw_cb(self, addressList, valueList, sendAddress):
-        print addressList
-        print valueList
-        print sendAddress
+        if sendAddress[0] not in self.activeClients:
+            self.activeClients.add(sendAddress[0])
+            self.diagClients[sendAddress[0]] = DiagnosticsClient(sendAddress[0],
+                                                                 addressList[2],
+                                                                 "/diagnostics")
+            self.oscSendToClient(osc.Message("/diganostics/diaglbl",
+                                             "/diagnostics"),
+                                 sendAddress[0])
+            
         

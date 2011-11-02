@@ -14,7 +14,6 @@ import pybonjour
 import select
 import socket
 import threading
-import copy
 import sys
 import logging
 
@@ -86,16 +85,9 @@ class Bonjour():
         """
         with self.clientLock:
             return self.__getClients()
-    
+     
     def __getClients(self):
-        ipDict = dict()
-        for k in self.clients.iterkeys():
-            try:
-                ipDict[(self.clients[k]["ip"], self.clients[k]["port"])] = k
-            except KeyError:
-                pass
-        return ipDict
-        
+        return self.clients
         
     def setClientCallback(self, callback):
         """

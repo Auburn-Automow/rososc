@@ -10,6 +10,30 @@ from txosc import async
 
 import threading
 
+class OscClient(object):
+    def __init__(self, address, port, name):
+        if type(address) is str:
+            self.address = address
+        else:
+            raise ValueError("Address must be a string")
+        if type(port) is int:
+            self.port = port
+        else:
+            raise ValueError("Port must be an integer")
+        if type(name) is str:
+            self.name = name
+        elif type(name) is unicode:
+            self.name = name.encode('ascii')
+        else:
+            raise ValueError("Name must be a string")
+        
+    def getSendTuple(self):
+        return (self.address, self.port)
+    
+    def getName(self):
+        return self.name.split(".")[0]
+
+
 class Node:
     """
     Class to represent a ROS Node.  Used to cross-wire ROS and Twisted shutdown signals.
@@ -24,6 +48,7 @@ class Node:
         
     def _shutdown_by_ros(self, *args):
         reactor.fireSystemEvent('shutdown')
+    
         
 class RosReceiver(dispatch.Receiver):
     """
@@ -87,7 +112,7 @@ class OSCNode(object):
         
         self.printFallback = rospy.get_param("~print_fallback", False)
         if self.printFallback:
-            rospy.loginfo("Logging all unhandled messages to loginfo")
+            rospy.loginfo("Logging all unhandled messages to rospy.loginfo")
         
         # Bonjour Server
         self.bonjourServer = Bonjour(self.name, self.port, self.regtype,
@@ -123,13 +148,13 @@ class OSCNode(object):
         """
         if self.clients:
             # If this is a list, iterate over the elements.
-            if element is type(list):
+            if type(element) is list:
                 for e in element:
                     if self.clients.has_key(client):
-                        self._osc_sender.send(element, client)
+                        self._osc_sender.send(element, self.clients[client].getSendTuple())
             # Otherwise, send the single element.        
             if self.clients.has_key(client):
-                self._osc_sender.send(element, client)
+                self._osc_sender.send(element, self.clients[client].getSendTuple())
     
     def sendToAll(self, element):
         """
@@ -139,35 +164,45 @@ class OSCNode(object):
         @param element: A single message or bundle, or a list of messages to be sent.
         """
         if self.clients:
-            for client in self.clients.iterkeys():
-                self.sendToClient(element, client)
+            for client in self.clients.itervalues():
+                self.sendToClient(element, client.getSendTuple())
     
-    def sendToAllOthers(self, element, client):
+    def sendToAllOthers(self, element, excludeClient):
         """
         Send an OSC C{Message} or C{Bundle} to all known clients except one
         
         @type element: C{Message} or C{Bundle} or C{list}
         @param element: A single message or bundle, or a list of messages to be sent.
-        @type client: C{tuple}
-        @param client: (host, port) tuple with destination to leave out.
+        @type excludeClient: C{tuple}
+        @param excludeClient: (host, port) tuple with destination to leave out.
         """
+        if type(excludeClient) is tuple:
+            exclude = excludeClient[0]
+        else: exclude = excludeClient
         if self.clients:
-            for destination in self.clients.iterkeys():
-                if destination != client:
-                    self.sendToClient(element, client) 
+            for client, clientObject in self.clients.iteritems():
+                if client != exclude:
+                    self.sendToClient(element, clientObject.getSendTuple()) 
     
-    def bonjourClientCallback(self, client):
+    def bonjourClientCallback(self, clientList):
         """
         Callback when Bonjour client list is updated.
         
         @type client: C{dict}
         @param client: A dictionary of clients {name:{ip,port}}
         """
-        if type(client) is not dict:
+        if type(clientList) is not dict:
             raise ValueError("Bonjour Client Callback requires dict type")
         else:
             with self.clientsLock:
-                self.clients = client
+                self.clients = {}
+                for clientName, clientAddress in clientList.iteritems():
+                    try:
+                        self.clients[clientAddress["ip"]] = OscClient(clientAddress["ip"],
+                                                                      clientAddress["port"],
+                                                                      clientName)
+                    except KeyError:
+                        pass
     
     def quit_handler(self, addressList, valueList, clientAddress):
         """

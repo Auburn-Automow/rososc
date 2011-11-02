@@ -15,10 +15,11 @@ from std_msgs.msg import String
 from twisted.internet import reactor
 
 class TeleopTabpageHandler(AbstractTabpageHandler):
-    def __init__(self, nodeName,max_vx = 0.6,max_vy = 0.6,max_vw = 0.8,
+    def __init__(self, nodeName, tabpageName, tabpageAlias, 
+                 max_vx = 0.6,max_vy = 0.6,max_vw = 0.8,
                  max_run_vx = 1.0, max_run_vy = 1.0, max_run_vw = 1.0,
                  run = False):
-        super(TeleopTabpageHandler, self).__init__(nodeName,"teleop")
+        super(TeleopTabpageHandler, self).__init__(nodeName, tabpageName, tabpageAlias)
         
         self.max_vx = rospy.get_param("~max_vx",max_vx)
         self.max_vy = rospy.get_param("~max_vy",max_vy)
@@ -43,6 +44,7 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         
         self.masterOsc = None
         reactor.callLater(1.0/self.minPublishFreq, self.publish_cmd)
+        print self.osc_node._callbacks
         
     def initializeTabpage(self):
         messageList = []

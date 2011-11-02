@@ -9,14 +9,24 @@ from txosc import osc
 from txosc import dispatch
 from txosc import async
 
-from oscnode import OSCNode
+import oscnode
 from twisted.internet import reactor
 
-import numpy as np
-from tf import transformations
-import geometry_msgs.msg
+class TouchOscClient(oscnode.OscClient):
+    def __init__(self, address, port, name):
+        super(TouchOscClient, self).__init__(address, port, name)
+        self.tabpages = set()
+        self.activeTabpage = None
+        self.clientType = None
+        if self.name.lower().find("ipad") != -1:
+            self.clientType = "ipad"
+        elif self.name.lower().find("iphone") != -1:
+            self.clientType = "ipod"
+        elif self.name.lower().find("ipod") != -1:
+            self.clientType = "ipod"  
+    
 
-class TouchOSCNode(OSCNode):
+class TouchOSCNode(oscnode.OSCNode):
     def __init__(self, name, port, regtype='_osc._udp'):
         super(TouchOSCNode, self).__init__(name, port, regtype)
         
@@ -31,9 +41,7 @@ class TouchOSCNode(OSCNode):
         reactor.callLater(1.0, self.diagnosticsUpdate)
         
         self._osc_receiver.addCallback("/*",self.tabPageSwitchCallback)
-
         self.tabpageHandlers = {}
-        self.clientTabpages = {}
         
     def diagnosticsUpdate(self):
         diagnosticsMsg = DiagnosticArray()
@@ -42,19 +50,20 @@ class TouchOSCNode(OSCNode):
         clientStatus = DiagnosticStatus()
         clientStatus.level = clientStatus.OK
         clientStatus.name = " ".join([self.name,"Client Status"])
-        clientStatus.hardware_id = ""
+        clientStatus.hardware_id = self.name
         clientStatus.message = "OK"
         clientStatus.values = []
-        for client, clientName in self.clients.iteritems():
-            if self.clientTabpages.has_key(client[0]):
-                clientStatus.values.append(KeyValue(key=clientName.split(".")[0], 
-                                                value=str(self.clientTabpages[client[0]])))
-            else:
-                clientStatus.values.append(KeyValue(key=clientName.split(".")[0],
-                                                    value=str(None)))
-        if len(self.clients) == 0:
-            clientStatus.message = "No clients detected"
+        with self.clientsLock:
+            for client in self.clients.itervalues():
+                clientStatus.values.append(KeyValue(key=client.getName() + " Type",
+                                                    value=client.clientType))
+                clientStatus.values.append(KeyValue(key=client.getName() + " Tabpage",
+                                                    value=client.activeTabpage))
+            if len(self.clients) == 0:
+                clientStatus.message = "No clients detected"
         diagnosticsMsg.status.append(clientStatus)
+        for tabpage in self.tabpageHandlers.itervalues():
+            diagnosticsMsg.status.append(tabpage.updateDiagnostics())
         self.diagnostics_pub.publish(diagnosticsMsg)
         reactor.callLater(1.0, self.diagnosticsUpdate)
         
@@ -93,15 +102,9 @@ class TouchOSCNode(OSCNode):
                                              self.sendToClient,
                                              self.sendToAllOthers)
         tpOscNode = self.tabpageHandlers[name].getOscNode()
-        self._osc_receiver.addNode(name, tpOscNode)
-        
-    def addTabpageAlias(self, tabpageAlias, tabpageHandler):
-        name = tabpageHandler.getTabpageName()
-        rospy.loginfo("Adding %s alias to %s"%(tabpageAlias, name))
-        self.tabpageHandlers[name] = tabpageHandler
-        tpOscNode = self.tabpageHandlers[name].getOscNode()
-        self._osc_receiver.addNode(tabpageAlias, tpOscNode)
-        print self._osc_receiver.getCallbacks("/teleopipod")
+        for alias, node in tabpageHandler.getAliasNodes().iteritems():
+            rospy.loginfo("\tAdding Alias: %s"%alias)
+            self._osc_receiver.addNode(alias, node)
         
     def getTabpageHandlerByName(self, name):
         return self.tabpageHandlers[name]
@@ -114,10 +117,11 @@ class TouchOSCNode(OSCNode):
             for page, handler in self.tabpageHandlers.iteritems():
                 if page != tabpage:
                     handler.tabpageClosedCallback(sendAddress)
-            for client in self.clients.iterkeys():
-                if (client[0] == sendAddress[0]):
-                    self.clientTabpages[client[0]] = tabpage
-        
+            for client, clientObject in self.clients.iteritems():
+                if client == sendAddress[0]:
+                    clientObject.activeTabpage = tabpage
+                    clientObject.tabpages.add(tabpage)
+
     def vibrateCallback(self, msg):
         self.sendToAll(osc.Message("/vibrate"))
     
@@ -125,15 +129,22 @@ class TouchOSCNode(OSCNode):
         for handler in self.tabpageHandlers.values():
             handler.initializeTabpage()
                 
-    def bonjourClientCallback(self, clients):
-        if type(clients) is not dict:
+    def bonjourClientCallback(self, clientList):
+        """
+        Callback when Bonjour client list is updated.
+        
+        @type client: C{dict}
+        @param client: A dictionary of clients {name:{ip,port}}
+        """
+        if type(clientList) is not dict:
             raise ValueError("Bonjour Client Callback requires dict type")
         else:
             with self.clientsLock:
-                self.clients = clients
-            rospy.logdebug("New Client Dictionary: %s"%clients)
-            for tabpage in self.tabpageHandlers.itervalues():
-                tabpage.updateClients(clients)
-        
-        
-        
+                self.clients = {}
+                for clientName, clientAddress in clientList.iteritems():
+                    try:
+                        self.clients[clientAddress["ip"]] = TouchOscClient(clientAddress["ip"],
+                                                                           clientAddress["port"],
+                                                                           clientName)
+                    except KeyError:
+                        pass
