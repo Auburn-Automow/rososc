@@ -13,7 +13,6 @@ from oscnode import OSCNode
 from twisted.internet import reactor
 
 import numpy as np
-from tf import transformations
 import geometry_msgs.msg
 
 class TouchOSCNode(OSCNode):
