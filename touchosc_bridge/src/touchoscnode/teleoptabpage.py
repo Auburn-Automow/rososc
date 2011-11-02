@@ -59,6 +59,15 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         self.cmd.angular.z = 0.0    
         
     def publish_cmd(self):
+        if self.masterOsc:
+            # Periodically resend the master address and the button status,
+            # with local feedback off, the device sometimes misses the message
+            # the first time, and you can't exit control or running mode.
+            message = osc.Message("/teleop/master",self.masterOsc[1])
+            self.oscSendToAll(message)
+            message = osc.Bundle([osc.Message("/teleop/control",1.0),
+                                 osc.Message("/teleop/turbo",self.running)])
+            self.oscSendToClient(message,self.masterOsc[0])        
         self.pub.publish(self.cmd)
         reactor.callLater(1.0/self.minPublishFreq, self.publish_cmd)
     
@@ -68,7 +77,7 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
             if sendAddress[0] == self.masterOsc[0][0]:
                 if len(addressList) == 2:
                     message = osc.Message("/teleop/xy",*valueList)
-                    self.oscSendToAllOthers(message, self.masterOsc[0])
+                    self.oscSendToAllOtherActive(message, self.masterOsc[0])
                     vx = self.max_run_vx if self.running else self.max_vx
                     vy = self.max_run_vy if self.running else self.max_vy
                     self.cmd.linear.x = max(min(valueList[0] * vx,vx),-vx)
@@ -83,7 +92,7 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
             if sendAddress[0] == self.masterOsc[0][0]:
                 if len(addressList) == 2:
                     message = osc.Message("/teleop/w",valueList[0])
-                    self.oscSendToAllOthers(message, self.masterOsc[0])
+                    self.oscSendToAllOtherActive(message, self.masterOsc[0])
                     vw = self.max_run_vw if self.running else self.max_vw
                     self.cmd.angular.z = max(min(valueList[0] * vw,vw),-vw)
                 elif valueList[0] == 0.0:

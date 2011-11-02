@@ -97,7 +97,7 @@ class OSCNode(object):
         self.bonjourServer.setClientCallback(self.bonjourClientCallback)
         reactor.callInThread(self.bonjourServer.run, daemon=True)
         
-        self.clients = None
+        self.clients = {}
         self.clientsLock = threading.Lock()
         
         # Twisted OSC receiver
@@ -168,7 +168,6 @@ class OSCNode(object):
         else:
             with self.clientsLock:
                 self.clients = client
-            rospy.logdebug("New Client Dictionary: %s"%client)
     
     def quit_handler(self, addressList, valueList, clientAddress):
         """

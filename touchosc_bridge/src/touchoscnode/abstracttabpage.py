@@ -53,6 +53,9 @@ class AbstractTabpageHandler(object):
     def getOscNode(self):
         return self.osc_node
     
+    def updateClients(self, clients):
+        self.clients = clients
+    
     def setSender(self, sendToAll, sendToClient, sendToAllOthers):
         """
         Set sender functions for the tabpage
@@ -61,6 +64,31 @@ class AbstractTabpageHandler(object):
         self.oscSendToClient = sendToClient
         self.oscSendToAll = sendToAll
         self.oscSendToAllOthers = sendToAllOthers 
+    
+    def oscSendToActive(self, element):
+        """
+        Send an OSC C{Message} or C{Bundle} to all clients on this tabpage.
+        
+        @type element: C{Message} or C{Bundle} or C{list}
+        @param element: A single message or bundle, or a list of messages to be sent.
+        """
+        if self.activeClients:
+            for client in self.activeClients.iterkeys():
+                self.sendToClient(element, client)
+                
+    def oscSendToAllOtherActive(self, element, client):
+        """
+        Send an OSC C{Message} or C{Bundle} to all other clients on this tabpage.
+        
+        @type element: C{Message} or C{Bundle} or C{list}
+        @param element: A single message or bundle, or a list of messages to be sent.
+        @type client: C{tuple}
+        @param client: (host, port) tuple with destination to leave out.
+        """
+        if self.activeClients:
+            for destination in self.clients.iterkeys():
+                if destination != client:
+                    self.sendToClient(element, client) 
         
     def initializeTabpage(self):
         """
@@ -69,9 +97,6 @@ class AbstractTabpageHandler(object):
         May be used to set default values of controls.
         """
         pass
-    
-    def updateClients(self, clients):
-        self.clients = clients
         
     def tabpageActiveCallback(self, client):
         """
