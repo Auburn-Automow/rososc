@@ -20,6 +20,7 @@ if __name__=="__main__":
             name = "TouchOscBridge"
             t = TouchOSCNode(name, port=8000)
             t.addTabpageHandler(TeleopTabpageHandler(name))
+            t.addTabpageHandler(DiagnosticsTabpageHandler(name))
             reactor.callLater(0.5, t.initializeTabpages)
         except:
             import traceback
