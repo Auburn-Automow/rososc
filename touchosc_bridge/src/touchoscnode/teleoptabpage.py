@@ -50,13 +50,15 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         messageList.append(osc.Message("/teleop/w",0.0))
         messageList.append(osc.Message("/teleop/control",0.0))
         messageList.append(osc.Message("/teleop/master",""))
+        messageList.append(osc.Message("/teleop/turbo",0.0))
         self.oscSendToAll(osc.Bundle(messageList))
         self.zero_command()
         
     def zero_command(self):
         self.cmd.linear.x = 0.0
         self.cmd.linear.y = 0.0
-        self.cmd.angular.z = 0.0    
+        self.cmd.angular.z = 0.0
+        self.running = False    
         
     def publish_cmd(self):
         if self.masterOsc:

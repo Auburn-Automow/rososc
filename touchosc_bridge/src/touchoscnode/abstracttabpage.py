@@ -42,7 +42,7 @@ class AbstractTabpageHandler(object):
         self.ros_subscribers = {}
         self.osc_nodes = {}
         self.clients = {}
-        self.activeClients = {}
+        self.activeClients = set()
         
     def getTabpageName(self):
         return self.tabpageName
@@ -73,8 +73,9 @@ class AbstractTabpageHandler(object):
         @param element: A single message or bundle, or a list of messages to be sent.
         """
         if self.activeClients:
-            for client in self.activeClients.iterkeys():
-                self.sendToClient(element, client)
+            for client in self.clients.iterkeys():
+                if client in self.activeClients:
+                    self.oscSendToClient(element, client)
                 
     def oscSendToAllOtherActive(self, element, client):
         """
@@ -86,9 +87,9 @@ class AbstractTabpageHandler(object):
         @param client: (host, port) tuple with destination to leave out.
         """
         if self.activeClients:
-            for destination in self.clients.iterkeys():
-                if destination != client:
-                    self.sendToClient(element, client) 
+            for dest in self.clients.iterkeys():
+                if dest[0] in self.activeClients and dest[0] != client[0]:
+                    self.oscSendToClient(element, dest) 
         
     def initializeTabpage(self):
         """
@@ -102,14 +103,16 @@ class AbstractTabpageHandler(object):
         """
         Callback when a client switches to this tabpage.
         """
-        pass
+        if client not in self.activeClients:
+            self.activeClients.add(client[0])
     
     def tabpageClosedCallback(self, client):
         """
         Callback when a client switches to any tabpage that is 
         not this one.
         """
-        pass
+        if client in self.activeClients:
+            self.activeClients.discard(client[0])
     
     def addOscCallback(self, name, callback):
         self.osc_nodes[name] = dispatch.AddressNode(name)
