@@ -46,12 +46,13 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         reactor.callLater(1.0/self.minPublishFreq, self.publish_cmd)
         
     def initializeTabpage(self):
+        rospy.loginfo("Teleop Initialized")
         messageList = []
-        messageList.append(osc.Message("/teleop/xy",0.0,0.0))
-        messageList.append(osc.Message("/teleop/w",0.0))
-        messageList.append(osc.Message("/teleop/control",0.0))
-        messageList.append(osc.Message("/teleop/master",""))
-        messageList.append(osc.Message("/teleop/turbo",0.0))
+        messageList.append(osc.Message("/ipod/teleop/xy",0.0,0.0))
+        messageList.append(osc.Message("/ipod/teleop/w",0.0))
+        messageList.append(osc.Message("/ipod/teleop/control",0.0))
+        messageList.append(osc.Message("/ipod/teleop/master",""))
+        messageList.append(osc.Message("/ipod/teleop/turbo",0.0))
         self.oscSendToAll(osc.Bundle(messageList))
         self.zero_command()
         

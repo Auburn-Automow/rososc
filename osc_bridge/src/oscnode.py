@@ -127,7 +127,7 @@ class OSCNode(object):
         self.clientsLock = threading.Lock()
         
         # Twisted OSC receiver
-        self._osc_receiver = dispatch.Receiver()
+        self._osc_receiver = RosReceiver()
         self._osc_receiver_port = reactor.listenUDP(self.port, async.DatagramServerProtocol(self._osc_receiver))
         
         # Twisted OSC Sender
@@ -147,13 +147,15 @@ class OSCNode(object):
         @type client: C{tuple}
         @param client: (host, port) tuple with destination address
         """
-        if self.clients:
+        with self.clientsLock:
             # If this is a list, iterate over the elements.
             if type(element) is list:
                 for e in element:
                     if self.clients.has_key(client):
                         self._osc_sender.send(element, self.clients[client].getSendTuple())
-            # Otherwise, send the single element.        
+            # Otherwise, send the single element.
+            print self.clients
+            print client 
             if self.clients.has_key(client):
                 self._osc_sender.send(element, self.clients[client].getSendTuple())
     
@@ -164,9 +166,8 @@ class OSCNode(object):
         @type element: C{Message} or C{Bundle} or C{list}
         @param element: A single message or bundle, or a list of messages to be sent.
         """
-        if self.clients:
-            for client in self.clients.itervalues():
-                self.sendToClient(element, client.getSendTuple())
+        for client in self.clients.itervalues():
+            self.sendToClient(element, client.getSendTuple())
     
     def sendToAllOthers(self, element, excludeClient):
         """
@@ -218,7 +219,7 @@ class OSCNode(object):
         rospy.loginfo("Got /quit, shutting down")
         reactor.stop()
         
-    def fallback(self, message, address):
+    def fallback(self, addressList, valueList, clientAddress):
         """
         Fallback handler for otherwise unhandled messages.
         
@@ -227,5 +228,6 @@ class OSCNode(object):
         @type clientAddress: C{list}
         """
         if self.printFallback:
-            rospy.loginfo(osc.getAddressParts(message.address))
-            rospy.loginfo(str(address))
+            rospy.loginfo(addressList)
+            rospy.loginfo(valueList)
+            rospy.loginfo(clientAddress)

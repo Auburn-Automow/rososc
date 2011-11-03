@@ -4,6 +4,7 @@ import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 import sys
 import time
+import copy
 
 from twisted.internet import reactor
 
@@ -35,8 +36,6 @@ if __name__=="__main__":
             t = TouchOSCNode(name, port=8000)
             t.addTabpageHandler(TeleopTabpageHandler(name,"teleop",
                                                      ["ipod/teleop","ipad/teleop"]))
-            walkNode(t._osc_receiver)
-            print t._osc_receiver._childNodes
             reactor.callLater(0.5, t.initializeTabpages)
         except:
             import traceback

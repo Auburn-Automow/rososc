@@ -41,8 +41,8 @@ class TouchOSCNode(oscnode.OSCNode):
         reactor.callLater(1.0, self.diagnosticsUpdate)
         
         self._osc_receiver.addCallback("/*",self.tabPageSwitchCallback)
-        self._osc_receiver.addCallback("/ipod/*", self.tabPageSwitchCallback)
-        self._osc_receiver.addCallback("/ipad/*", self.tabPageSwitchCallback)
+        self._osc_receiver.addCallback("/ipod/*",self.tabPageSwitchCallback)
+        self._osc_receiver.addCallback("/ipad/*",self.tabPageSwitchCallback)
         self.tabpageHandlers = {}
         
     def diagnosticsUpdate(self):
@@ -143,18 +143,10 @@ class TouchOSCNode(oscnode.OSCNode):
             raise ValueError("Bonjour Client Callback requires dict type")
         else:
             with self.clientsLock:
-                oldClients = set(clientList.keys())
-                newClients = set()
                 for clientName, clientAddress in clientList.iteritems():
                     try:
                         self.clients[clientAddress["ip"]] = TouchOscClient(clientAddress["ip"],
                                                                            clientAddress["port"],
                                                                            clientName)
-                        newClients.add(clientAddress["ip"])
                     except KeyError:
-                        pass
-                for client in (newClients - oldClients):
-                    try:
-                        del self.clients[client]
-                    except KeyError:
-                        pass
+                        print "KeyError"
