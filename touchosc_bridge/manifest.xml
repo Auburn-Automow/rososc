@@ -9,7 +9,6 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/touchosc_bridge</url>
   <depend package="osc_bridge" />
-  <depend package="osc_msgs" />
   <depend package="pytouchosc"/>
   <depend package="sensor_msgs" />
   <depend package="touchosc_msgs" />
