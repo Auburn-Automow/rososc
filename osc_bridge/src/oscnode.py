@@ -6,6 +6,7 @@ from pytouchosc.bonjour import Bonjour
 from twisted.internet import reactor, threads
 from txosc import osc
 from txosc import dispatch
+from txosc.dispatch import AddressNode
 from txosc import async
 
 import threading
@@ -126,7 +127,7 @@ class OSCNode(object):
         self.clientsLock = threading.Lock()
         
         # Twisted OSC receiver
-        self._osc_receiver = RosReceiver()
+        self._osc_receiver = dispatch.Receiver()
         self._osc_receiver_port = reactor.listenUDP(self.port, async.DatagramServerProtocol(self._osc_receiver))
         
         # Twisted OSC Sender
@@ -217,7 +218,7 @@ class OSCNode(object):
         rospy.loginfo("Got /quit, shutting down")
         reactor.stop()
         
-    def fallback(self, addressList, valueList, clientAddress):
+    def fallback(self, message, address):
         """
         Fallback handler for otherwise unhandled messages.
         
@@ -226,6 +227,5 @@ class OSCNode(object):
         @type clientAddress: C{list}
         """
         if self.printFallback:
-            rospy.loginfo(addressList)
-            rospy.loginfo(valueList)
-            rospy.loginfo(clientAddress)
+            rospy.loginfo(osc.getAddressParts(message.address))
+            rospy.loginfo(str(address))

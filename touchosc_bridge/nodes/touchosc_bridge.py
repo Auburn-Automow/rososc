@@ -36,6 +36,7 @@ if __name__=="__main__":
             t.addTabpageHandler(TeleopTabpageHandler(name,"teleop",
                                                      ["ipod/teleop","ipad/teleop"]))
             walkNode(t._osc_receiver)
+            print t._osc_receiver._childNodes
             reactor.callLater(0.5, t.initializeTabpages)
         except:
             import traceback
