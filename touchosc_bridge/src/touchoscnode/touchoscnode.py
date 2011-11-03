@@ -41,6 +41,8 @@ class TouchOSCNode(oscnode.OSCNode):
         reactor.callLater(1.0, self.diagnosticsUpdate)
         
         self._osc_receiver.addCallback("/*",self.tabPageSwitchCallback)
+        self._osc_receiver.addCallback("/ipod/*", self.tabPageSwitchCallback)
+        self._osc_receiver.addCallback("/ipad/*", self.tabPageSwitchCallback)
         self.tabpageHandlers = {}
         
     def diagnosticsUpdate(self):
@@ -102,7 +104,8 @@ class TouchOSCNode(oscnode.OSCNode):
                                              self.sendToClient,
                                              self.sendToAllOthers)
         tpOscNode = self.tabpageHandlers[name].getOscNode()
-        for alias, node in tabpageHandler.getAliasNodes().iteritems():
+        self._osc_receiver.addNode(name, tpOscNode)
+        for alias, node in tabpageHandler.getAliasNodes():
             rospy.loginfo("\tAdding Alias: %s"%alias)
             self._osc_receiver.addNode(alias, node)
         
@@ -140,21 +143,18 @@ class TouchOSCNode(oscnode.OSCNode):
             raise ValueError("Bonjour Client Callback requires dict type")
         else:
             with self.clientsLock:
-<<<<<<< HEAD
-                self.clients = clients
-            rospy.logdebug("New Client Dictionary: %s"%clients)
-            for tabpage in self.tabpageHandlers.itervalues():
-                tabpage.updateClients(clients)
-        
-        
-        
-=======
-                self.clients = {}
+                oldClients = set(clientList.keys())
+                newClients = set()
                 for clientName, clientAddress in clientList.iteritems():
                     try:
                         self.clients[clientAddress["ip"]] = TouchOscClient(clientAddress["ip"],
                                                                            clientAddress["port"],
                                                                            clientName)
+                        newClients.add(clientAddress["ip"])
                     except KeyError:
                         pass
->>>>>>> 9c9f650bccf88eebe4410af026740fb5d7f1d524
+                for client in (newClients - oldClients):
+                    try:
+                        del self.clients[client]
+                    except KeyError:
+                        pass

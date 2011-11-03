@@ -44,7 +44,6 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         
         self.masterOsc = None
         reactor.callLater(1.0/self.minPublishFreq, self.publish_cmd)
-        print self.osc_node._callbacks
         
     def initializeTabpage(self):
         messageList = []

@@ -36,11 +36,12 @@ class AbstractTabpageHandler(object):
         self.tabpageName = tabpageName
         self.alias = tabpageAlias
         
-        self.osc_node = dispatch.AddressNode(self.tabpageName)
-        self.alias_nodes = {}
-        
+        self.osc_node = {}
+        self.osc_node[self.tabpageName] = {}
+        self.osc_node[self.tabpageName][None] = dispatch.AddressNode(self.tabpageName)
         for alias in tabpageAlias:
-            self.alias_nodes[alias] = dispatch.AddressNode(alias)
+            self.osc_node[alias] = {}
+            self.osc_node[alias][None] = dispatch.AddressNode(alias)
             
         self.osc_send = None
         self.oscSendToClient = None
@@ -49,7 +50,6 @@ class AbstractTabpageHandler(object):
         
         self.ros_publishers = {}
         self.ros_subscribers = {}
-        self.osc_nodes = {}
         self.clients = None
         
     def getTabpageName(self):
@@ -59,11 +59,14 @@ class AbstractTabpageHandler(object):
         return self.nodeName
     
     def getOscNode(self):
-        return self.osc_node
+        return self.osc_node[self.tabpageName][None]
     
     def getAliasNodes(self):
-        return self.alias_nodes
-        
+        nodes = []
+        for alias in self.alias:
+            nodes.append((alias, self.osc_node[alias][None]))
+        return nodes
+    
     def updateDiagnostics(self):
         tabpageStatus = DiagnosticStatus()
         tabpageStatus.level = tabpageStatus.OK
@@ -130,12 +133,11 @@ class AbstractTabpageHandler(object):
             self.activeClients.remove(client[0])
     
     def addOscCallback(self, name, callback):
-        self.osc_nodes[name] = dispatch.AddressNode(name)
-        self.osc_nodes[name].addCallback("*", callback)
-        self.osc_nodes[name].addCallback("/*", callback)
-        self.osc_nodes[name].addCallback("/*/*", callback)
-        self.osc_node.addNode(name, self.osc_nodes[name])
-        for alias, aliasNode in self.alias_nodes.iteritems():
-            aliasNode.addNode(alias, self.osc_nodes[name])
+        for node in self.osc_node.itervalues():
+            node[name] = dispatch.AddressNode(name)
+            node[name].addCallback("*", callback)
+            node[name].addCallback("/*", callback)
+            node[name].addCallback("/*/*", callback)
+            node[None].addNode(name, node[name])
         
         
