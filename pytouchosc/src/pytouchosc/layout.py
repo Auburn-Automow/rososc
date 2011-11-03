@@ -124,8 +124,7 @@ class Layout(object):
         Create a TouchOSCLayout instance from an existing TouchOSC Layout.
 
         @type source: filename or fileobject 
-        @param source: Path to an existing .touchosc file, or fileobject containing
-            the layout XML data.
+        @param source: Path to an existing .touchosc file, or TouchOSC index file.
         @rtype: Layout 
         @return: An instance containing the layout 
         """
@@ -139,18 +138,14 @@ class Layout(object):
         layoutParser.setElementClassLookup(lookupControls)
         
         if type(source) is str:
-            try:
+            (_,extension) = os.path.splitext(source)
+            if extension == ".touchosc":
                 f = ZipFile(source, "r")
-                layoutTree = etree.parse(StringIO(f.read("index.xml")), layoutParser)
+                layoutTree = etree.parse(StringIO(f.read("index.xml")), 
+                                         layoutParser)
                 f.close()
-            except IOError:
-                pass
-        elif type(source) is file:
-            #TODO: Test this
-            try:
+            elif extension == ".xml":
                 layoutTree = etree.parse(source, layoutParser)
-            except:
-                pass
         return Layout(layoutTree)
 
     @classmethod

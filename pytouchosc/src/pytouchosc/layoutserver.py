@@ -122,9 +122,9 @@ def main(argv, stdout):
     if len(args) < 2:
         parser.error("Please specify a layout file.")
         sys.exit(1)
-    layoutFilePath = args[1]; 
+    layoutFilePath = args[1]
     
-    if logging:
+    if options.logging:
         numeric_level = options.logging.upper()
     else:
         numeric_level = None
