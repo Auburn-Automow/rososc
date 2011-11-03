@@ -37,9 +37,9 @@ class Bonjour():
                         _udp").  A list of service types is available at:
                         U{http://www.dns-sd.org/ServiceTypes.html}
         """
-        self.debug = logging.logdebug
-        self.info = logging.loginfo
-        self.error = logging.logerror
+        self.debug = logging.debug
+        self.info = logging.info
+        self.error = logging.error
         
         if debug:
             self.debug = debug
@@ -337,19 +337,22 @@ def main(argv, stdout):
     parser.add_option("-r", "--regtype", action="store", type="string", dest="regtype",
             default="_osc._udp",
             help="Registration type of the service advertised on Bonjour")
-    parser.add_option("-v", action="count", dest="verbosity",
-            help="Set verbosity level, up to -vv")
+    parser.add_option("--log", action="store", dest="logging",
+            help="Set logging level", default="INFO")
     (options, args) = parser.parse_args(argv)
 
+    if logging:
+        numeric_level = options.logging.upper()
+    else:
+        numeric_level = None
+        
+    logging.basicConfig(level=numeric_level)
     osc_bonjour = Bonjour(name=options.name,
                           port=options.port,
                           regtype=options.regtype)
-    # Set up the verbosity levels
-    if options.verbosity == None:
-        osc_bonjour.info = logging.logquiet
-        osc_bonjour.debug = logging.logquiet
-    elif options.verbosity == 1:
-        osc_bonjour.debug = logging.logquiet
+
+    osc_bonjour.info = logging.info
+    osc_bonjour.debug = logging.debug
 
     osc_bonjour.setClientCallback(client_callback)
 

@@ -61,9 +61,9 @@ class LayoutServer(object):
         @type port: int
         @param port: Port number to host the layout file on. 
         """
-        self.debug = logging.logdebug
-        self.info = logging.loginfo
-        self.error = logging.logerror
+        self.debug = logging.debug
+        self.info = logging.info
+        self.error = logging.error
         
         if debug:
             self.debug = debug
@@ -97,13 +97,9 @@ class LayoutServer(object):
         self.t.start()
     
     def stop(self):
-        logging.loginfo("Shutting Down")
         self.bonjourServer.stop_register()
-        logging.loginfo("Bonjour Server Stopped")
         self.httpd.shutdown()
-        logging.loginfo("HTTPD Server Shutdown")
         self.httpd.server_close()
-        logging.loginfo("HTTPD Server Closed")
         
     def _run_http(self, ):
         try:
@@ -120,11 +116,19 @@ def main(argv, stdout):
     parser.add_option("-n", "--name", action="store", type="string", dest="name",
             default="OSC Layout Server on %s" % socket.gethostname(),
             help="Name that will appear in TouchOSC's Server List")
+    parser.add_option("--log", action="store", dest="logging",
+                      help="Set logging level", default = "INFO")
     (options, args) = parser.parse_args(argv)
     if len(args) < 2:
         parser.error("Please specify a layout file.")
         sys.exit(1)
     layoutFilePath = args[1]; 
+    
+    if logging:
+        numeric_level = options.logging.upper()
+    else:
+        numeric_level = None
+    logging.basicConfig(level=numeric_level)
     
     # Attempt to instantiate the server class.  Returns a ValueError if the
     # layoutFilePath is incorrect    
