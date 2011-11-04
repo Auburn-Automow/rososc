@@ -1,8 +1,7 @@
-import roslib; roslib.load_manifest('touchosc_bridge')
+import roslib; roslib.load_manifest('touchosc_handlers')
 
 from txosc import osc
 from txosc import dispatch
-from txosc import async
 
 from abstracttabpage import AbstractTabpageHandler
 import pytouchosc

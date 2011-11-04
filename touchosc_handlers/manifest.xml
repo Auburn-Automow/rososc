@@ -1,0 +1,16 @@
+<package>
+  <description brief="touchosc_handlers">
+
+     touchosc_handlers
+
+  </description>
+  <author>Michael Carroll</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/touchosc_handlers</url>
+  <depend package="touchosc_bridge" />
+  <depend package="touchosc_msgs" />
+
+</package>
+
+

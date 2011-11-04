@@ -4,7 +4,6 @@ import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 import sys
 import time
-import copy
 
 from twisted.internet import reactor
 
@@ -14,20 +13,6 @@ from touchoscnode import DiagnosticsTabpageHandler
 from touchoscnode import TeleopTabpageHandler
 
 import pytouchosc
-
-def walkNode(node, path='', sep='/'):
-    newPath = path + sep
-    if len(node._childNodes) == 0:
-        if len(node._callbacks):
-            cb = node._callbacks.pop()
-            cbStr = ".".join([cb.__module__,cb.__name__])
-            print '{0:<30}{1:<30}'.format(newPath + node.getName(),cbStr)
-    for k, v in node._childNodes.iteritems():
-        if node.getName():
-            newpath = sep.join([path,str(node.getName())])
-        else:
-            newpath = path
-        walkNode(v,newpath)
 
 def walk_node(parent, sep='/'):
     """Walk a node tree for nodes with callbacks."""
