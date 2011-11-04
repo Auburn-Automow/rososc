@@ -107,11 +107,11 @@ class OSCNode(object):
         @param printFallback: Enable logging unhandled messages to the console.
         """
         Node(name)
-        self.name = name
-        self.port = port
-        self.regtype = regtype
-        
+        self.name = rospy.get_param("~name", name)
+        self.port = rospy.get_param("~port", port)
+        self.regtype = rospy.get_param("~regtype", regtype)
         self.printFallback = rospy.get_param("~print_fallback", False)
+        
         if self.printFallback:
             rospy.loginfo("Logging all unhandled messages to rospy.loginfo")
         
