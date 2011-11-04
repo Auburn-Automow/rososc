@@ -6,6 +6,9 @@ from txosc import async
 
 from diagnostic_msgs.msg import DiagnosticStatus, KeyValue
 
+import copy
+
+
 class AbstractTabpageHandler(object):
     """
     Base class for all TabpageHandlers.  In order to start creating your own Tabpage and handler,
@@ -22,6 +25,7 @@ class AbstractTabpageHandler(object):
        - Approximately 0.5 seconds after the last Tabpage is added, setControls is called
             (useful for clearing a tabpage, or setting it to some defaults)
     """
+    
     def __init__(self, nodeName, tabpageName, tabpageAlias=[]):
         """
         Initialize a TabpageHandler object.
@@ -35,6 +39,8 @@ class AbstractTabpageHandler(object):
         self.nodeName = nodeName
         self.tabpageName = tabpageName
         self.alias = tabpageAlias
+        self.names = [self.tabpageName]
+        self.names.extend([alias for alias in self.alias])
         
         self.osc_node = {}
         self.osc_node[self.tabpageName] = {}
@@ -42,18 +48,23 @@ class AbstractTabpageHandler(object):
         for alias in tabpageAlias:
             self.osc_node[alias] = {}
             self.osc_node[alias][None] = dispatch.AddressNode(alias)
-            
-        self.osc_send = None
-        self.oscSendToClient = None
-        self.oscSendToAll = None
-        self.oscSendToAllOthers = None
+
+        self.__oscSendToClient = None
+        self.__oscSendToAll = None
+        self.__oscSendToAllOthers = None
         
         self.ros_publishers = {}
         self.ros_subscribers = {}
-        self.clients = None
+        self.activeClients = {}
         
     def getTabpageName(self):
         return self.tabpageName
+    
+    def getAllTabpageNames(self):
+        """
+        Return a list of all names for this tabpage, including aliases.
+        """
+        return self.names
     
     def getNodeName(self):
         return self.nodeName
@@ -65,37 +76,67 @@ class AbstractTabpageHandler(object):
         nodes = []
         for alias in self.alias:
             nodes.append((alias, self.osc_node[alias][None]))
-        return nodes
+        return nodes     
     
     def updateDiagnostics(self):
         tabpageStatus = DiagnosticStatus()
         tabpageStatus.level = tabpageStatus.OK
-        tabpageStatus.name = self.tabpageName
+        tabpageStatus.name = self.tabpageName + " Handler"
         tabpageStatus.hardware_id = self.nodeName
         tabpageStatus.message = "OK"
+        tabpageStatus.values = []
+        for client, type in self.activeClients.iteritems():
+            tabpageStatus.values.append(KeyValue(key=client, value = type))
         return tabpageStatus
     
     def setSender(self, sendToAll, sendToClient, sendToAllOthers):
         """
         Set sender functions for the tabpage
         """
-        self.oscSendToClient = sendToClient
-        self.oscSendToAll = sendToAll
-        self.oscSendToAllOthers = sendToAllOthers 
+        self.__oscSendToClient = sendToClient
+        self.__oscSendToAll = sendToAll
+        self.__oscSendToAllOthers = sendToAllOthers 
     
-    def oscSendToActive(self, element):
+    def sendToClient(self, element, client):
+        e = copy.copy(element)
+        if client in self.activeClients.iterkeys():
+            basename = '/' + self.activeClients[client]
+            if type(e) is osc.Bundle:
+                for m in element.getMessages():
+                    m.address = '/'.join([basename,m.address])
+            if type(e) is osc.Message:
+                e.address = '/'.join([basename,e.address])
+            self.__oscSendToClient(e, client)
+            
+    def sendToAll(self, element):
+        exclude = set()
+        for client in self.activeClients.iterkeys():
+            exclude.add(client)
+            self.sendToClient(element, client)
+        for name in self.names:
+            e = copy.copy(element)
+            basename = '/' + name
+            if type(e) is osc.Bundle:
+                newBundle = osc.Bundle()
+                for m in e.getMessages():
+                    newBundle.add(osc.Message('/'.join([basename,m.address]),
+                                              *m.getValues()))
+                self.__oscSendToAllOthers(newBundle, exclude)
+            elif type(e) is osc.Message:
+                e.address = '/'.join([basename,e.address])
+                self.__oscSendToAllOthers(e, exclude) 
+    
+    def sendToActive(self, element):
         """
         Send an OSC C{Message} or C{Bundle} to all clients on this tabpage.
         
         @type element: C{Message} or C{Bundle} or C{list}
         @param element: A single message or bundle, or a list of messages to be sent.
         """
-        if self.activeClients:
-            for client in self.clients.iterkeys():
-                if client in self.activeClients:
-                    self.oscSendToClient(element, client)
+        for client in self.activeClients:
+            self.sendToClient(element, client)
                 
-    def oscSendToAllOtherActive(self, element, client):
+    def sendToAllOtherActive(self, element, client):
         """
         Send an OSC C{Message} or C{Bundle} to all other clients on this tabpage.
         
@@ -104,10 +145,9 @@ class AbstractTabpageHandler(object):
         @type client: C{tuple}
         @param client: (host, port) tuple with destination to leave out.
         """
-        if self.activeClients:
-            for dest in self.clients.iterkeys():
-                if dest[0] in self.activeClients and dest[0] != client[0]:
-                    self.oscSendToClient(element, dest) 
+        for dest in self.activeClients:
+            if dest != client:
+                self.sendToClient(element, dest) 
         
     def initializeTabpage(self):
         """
@@ -117,20 +157,21 @@ class AbstractTabpageHandler(object):
         """
         pass
         
-    def tabpageActiveCallback(self, client):
+    def tabpageActiveCallback(self, client, tabpage):
         """
         Callback when a client switches to this tabpage.
         """
         if client[0] not in self.activeClients:
-            self.activeClients.add(client[0])
+            self.activeClients[client[0]] = tabpage
+        print self.activeClients
     
-    def tabpageClosedCallback(self, client):
+    def tabpageClosedCallback(self, client, tabpage):
         """
         Callback when a client switches to any tabpage that is 
         not this one.
         """
         if client[0] in self.activeClients:
-            self.activeClients.remove(client[0])
+            del self.activeClients[client[0]]
     
     def addOscCallback(self, name, callback):
         for node in self.osc_node.itervalues():
@@ -139,5 +180,4 @@ class AbstractTabpageHandler(object):
             node[name].addCallback("/*", callback)
             node[name].addCallback("/*/*", callback)
             node[None].addNode(name, node[name])
-        
-        
+    

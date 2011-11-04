@@ -3,9 +3,8 @@
 import os
 import sys
 
-# This is bad, but also not ROS-specific.  
-# TODO: I will change it when there is an equivalent to load_manifest in rospkg
-sys.path.append(os.path.abspath("../src"))
+import roslib; roslib.load_manifest('pytouchosc')
+
 import pytouchosc
 
 def main(argv, stdout):

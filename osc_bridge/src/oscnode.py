@@ -135,7 +135,6 @@ class OSCNode(object):
         self._osc_sender_port = reactor.listenUDP(0, self._osc_sender)
           
         # Add OSC callbacks
-        self._osc_receiver.addCallback("/quit", self.quit_handler)
         self._osc_receiver.fallback = self.fallback   
         
     def sendToClient(self, element, client):
@@ -147,24 +146,19 @@ class OSCNode(object):
         @type client: C{tuple}
         @param client: (host, port) tuple with destination address
         """
+        if type(client) is tuple: c = client[0]
+        else:c = client
         with self.clientsLock:
-            # If this is a list, iterate over the elements.
-            if type(element) is list:
-                for e in element:
-                    if self.clients.has_key(client):
-                        self._osc_sender.send(element, self.clients[client].getSendTuple())
-            # Otherwise, send the single element.
-            print self.clients
-            print client 
-            if self.clients.has_key(client):
-                self._osc_sender.send(element, self.clients[client].getSendTuple())
+            if self.clients.has_key(c):
+                print "Send %s to %s" %(element, self.clients[c].getSendTuple()[0])
+                self._osc_sender.send(element, self.clients[c].getSendTuple())
     
     def sendToAll(self, element):
         """
         Send an OSC C{Message} or C{Bundle to all known clients.
         
         @type element: C{Message} or C{Bundle} or C{list}
-        @param element: A single message or bundle, or a list of messages to be sent.
+        @param element: A single message or bundle.
         """
         for client in self.clients.itervalues():
             self.sendToClient(element, client.getSendTuple())
@@ -174,16 +168,14 @@ class OSCNode(object):
         Send an OSC C{Message} or C{Bundle} to all known clients except one
         
         @type element: C{Message} or C{Bundle} or C{list}
-        @param element: A single message or bundle, or a list of messages to be sent.
+        @param element: A single message or bundle.
         @type excludeClient: C{tuple}
         @param excludeClient: (host, port) tuple with destination to leave out.
         """
-        if type(excludeClient) is tuple:
-            exclude = excludeClient[0]
-        else: exclude = excludeClient
         if self.clients:
             for client, clientObject in self.clients.iteritems():
-                if client != exclude:
+                
+                if client not in excludeClient:
                     self.sendToClient(element, clientObject.getSendTuple()) 
     
     def bonjourClientCallback(self, clientList):
@@ -197,28 +189,17 @@ class OSCNode(object):
             raise ValueError("Bonjour Client Callback requires dict type")
         else:
             with self.clientsLock:
-                self.clients = {}
+                new = set()
                 for clientName, clientAddress in clientList.iteritems():
-                    try:
-                        self.clients[clientAddress["ip"]] = OscClient(clientAddress["ip"],
+                    new.add(clientAddress["ip"])
+                    if not self.clients.has_key(clientAddress["ip"]):
+                        self.clients[clientAddress["ip"]] = TouchOscClient(clientAddress["ip"],
                                                                       clientAddress["port"],
                                                                       clientName)
-                    except KeyError:
-                        pass
-    
-    def quit_handler(self, addressList, valueList, clientAddress):
-        """
-        Method handler for /quit
-        
-        Quits the application
-        
-        @type addressList: C{list}
-        @type valueList: C{list}
-        @type clientAddress: C{list}
-        """
-        rospy.loginfo("Got /quit, shutting down")
-        reactor.stop()
-        
+                old = set(self.clients.keys())
+                for removed in (old-new):
+                    del self.clients[removed]
+
     def fallback(self, addressList, valueList, clientAddress):
         """
         Fallback handler for otherwise unhandled messages.
