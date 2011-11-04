@@ -83,6 +83,7 @@ class RosReceiver(dispatch.Receiver):
             if not matched:
                 self.fallback(addressList, valuesList, clientAddress)
 
+
 class OSCNode(object):
     """
     Base OSC ROS Node
@@ -93,7 +94,7 @@ class OSCNode(object):
     @ivar _osc_sender: OSC Protocol send interface
     @ivar _osc_receiver: OSC Protocol receiver interface
     """
-    def __init__(self, name, port, regtype='_osc._udp', printFallback = False):
+    def __init__(self, name, port, regtype='_osc._udp', **kwargs):
         """
         Initialize OSCNode.
         
@@ -106,10 +107,13 @@ class OSCNode(object):
         @type printFallback: C{bool}
         @param printFallback: Enable logging unhandled messages to the console.
         """
-        Node(name)
+        Node(name, **kwargs)
         self.name = rospy.get_param("~name", name)
         self.port = rospy.get_param("~port", port)
         self.regtype = rospy.get_param("~regtype", regtype)
+        
+        self.rosName = rospy.get_name()
+        
         self.printFallback = rospy.get_param("~print_fallback", False)
         
         if self.printFallback:
@@ -119,7 +123,7 @@ class OSCNode(object):
         self.bonjourServer = Bonjour(self.name, self.port, self.regtype,
                 debug=rospy.logdebug,
                 info=rospy.logdebug,
-                error=rospy.logerr)
+                error=rospy.logdebug)
         self.bonjourServer.setClientCallback(self.bonjourClientCallback)
         reactor.callInThread(self.bonjourServer.run, daemon=True)
         
@@ -150,7 +154,6 @@ class OSCNode(object):
         else:c = client
         with self.clientsLock:
             if self.clients.has_key(c):
-                print "Send %s to %s" %(element, self.clients[c].getSendTuple()[0])
                 self._osc_sender.send(element, self.clients[c].getSendTuple())
     
     def sendToAll(self, element):

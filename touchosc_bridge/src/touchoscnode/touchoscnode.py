@@ -12,6 +12,28 @@ from txosc import async
 import oscnode
 from twisted.internet import reactor
 
+def walk_node(parent, sep='/'):
+    """Walk a node tree for nodes with callbacks."""
+    consumer = [parent]
+    foo = {}
+    sep = '/'
+    while consumer:
+        node = consumer.pop(0)
+        if len(node._childNodes) == 0 and len(node._callbacks):
+            for cb in node._callbacks:
+                cbStr = ".".join([cb.__module__,cb.__name__])
+                yield (build_path(node, sep), cbStr)
+        else:
+            for k, v in node._childNodes.iteritems():
+                consumer.append(v)
+
+def build_path(node, sep):
+    """Reconstruct a path by following the parents of each node."""
+    if node._parent:
+        return build_path(node._parent, sep) + sep + node.getName()
+    else:
+        return ''
+
 class TouchOscClient(oscnode.OscClient):
     def __init__(self, address, port, name):
         super(TouchOscClient, self).__init__(address, port, name)
@@ -59,27 +81,42 @@ class TouchOscClient(oscnode.OscClient):
     
 
 class TouchOSCNode(oscnode.OSCNode):
-    def __init__(self, name, port, regtype='_osc._udp'):
-        super(TouchOSCNode, self).__init__(name, port, regtype)
+    def __init__(self, name='OSC', port=8000, regtype='_osc._udp', **kwargs):
+        super(TouchOSCNode, self).__init__(name, port, regtype, **kwargs)
         
         # Handle the accelerometer data from the iPad
         self._osc_receiver.addCallback("/accxyz", self.accel_cb)
-        self.accel_pub = rospy.Publisher(name + '/accel', Imu)
+        self.accel_pub = rospy.Publisher(self.rosName + '/accel', Imu)
         # Add an empty message to vibrate compatible clients (iPhones)
-        self.vibrate_sub = rospy.Subscriber(name + '/vibrate', Empty,
+        self.vibrate_sub = rospy.Subscriber(self.rosName + '/vibrate', Empty,
                                             self.vibrateCallback)
         # Add a diagnostics publisher
         self.diagnostics_pub = rospy.Publisher("/diagnostics", DiagnosticArray)
-        reactor.callLater(1.0, self.diagnosticsUpdate)
         
         self._osc_receiver.addCallback("/*",self.tabPageSwitchCallback)
         self.tabpages = set()
         self.tabpageHandlers = {}
+        self.__callbackDiagnostic = None
+        reactor.callLater(1.0, self.diagnosticsUpdate)
         
     def diagnosticsUpdate(self):
         diagnosticsMsg = DiagnosticArray()
         diagnosticsMsg.header.stamp = rospy.Time.now()
         diagnosticsMsg.status = []
+        if not self.__callbackDiagnostic:
+            c = DiagnosticStatus()
+            c.level = c.OK
+            c.name = " ".join([self.name,"Registered Callbacks"])
+            c.hardware_id = self.name
+            c.message = "OK"
+            c.values = []
+            diags = [(k,v) for k, v in walk_node(self._osc_receiver)]
+            rospy.logdebug("Registered Callbacks:")
+            for (k,v) in diags:
+                rospy.logdebug('{0:<30}{1:<30}'.format(k,v))
+                c.values.append(KeyValue(key=k, value=v))
+            self.__callbackDiagnostic = c
+        diagnosticsMsg.status.append(self.__callbackDiagnostic)
         clientStatus = DiagnosticStatus()
         clientStatus.level = clientStatus.OK
         clientStatus.name = " ".join([self.name,"Client Status"])
@@ -129,19 +166,18 @@ class TouchOSCNode(oscnode.OSCNode):
         msg.orientation_covariance = msg.angular_velocity_covariance
         self.accel_pub.publish(msg)
         
-    def addTabpageHandler(self, tabpageHandler):
-        name = tabpageHandler.getTabpageName()
+    def addTabpageHandler(self, tabpageHandler, name, *args):
         self.tabpages.add(name)
         rospy.loginfo("Adding Tabpage: %s"%name)
-        self.tabpageHandlers[name] = tabpageHandler
+        self.tabpageHandlers[name] = tabpageHandler(self.name,name,*args)
         self.tabpageHandlers[name].setSender(self.sendToAll,
                                              self.sendToClient,
                                              self.sendToAllOthers)
         tpOscNode = self.tabpageHandlers[name].getOscNode()
         self._osc_receiver.addNode(name, tpOscNode)
-        for alias, node in tabpageHandler.getAliasNodes():
+        for alias, node in self.tabpageHandlers[name].getAliasNodes():
             rospy.loginfo("\tAdding Alias: %s"%alias)
-            self.tabpageHandlers[alias] = tabpageHandler
+            self.tabpageHandlers[alias] = self.tabpageHandlers[name]
             self._osc_receiver.addNode(alias, node)
         
     def getTabpageHandlerByName(self, name):

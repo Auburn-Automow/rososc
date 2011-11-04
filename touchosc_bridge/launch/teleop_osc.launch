@@ -13,8 +13,4 @@
         <param name="run" value="False" type="bool" />
         <param name="print_fallback" value="True" type="bool" />
     </node>
-    <node pkg="pytouchosc" type="osc_layoutserver" name="osc_layoutserver">
-        <param name="layout_path" value="$(find touchosc_bridge)/layouts/teleop.touchosc"/>
-        <param name="name" value="teleop.touchosc"/>
-    </node>
 </launch>

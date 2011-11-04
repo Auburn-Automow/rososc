@@ -1,18 +1,12 @@
-import roslib; roslib.load_manifest('touchosc_bridge')
-
+import roslib; roslib.load_manifest('touchosc_handlers')
 import rospy
 
 from txosc import osc
-from txosc import dispatch
-from txosc import async
-
 from geometry_msgs.msg import Twist
-import touchosc_msgs.msg
 
-from abstracttabpage import AbstractTabpageHandler
-from std_msgs.msg import String
-
+from touchosc_bridge import AbstractTabpageHandler
 from twisted.internet import reactor
+
 import socket
 
 class TeleopTabpageHandler(AbstractTabpageHandler):

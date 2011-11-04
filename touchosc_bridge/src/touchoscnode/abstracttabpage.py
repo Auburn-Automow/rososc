@@ -5,9 +5,7 @@ from txosc import dispatch
 from txosc import async
 
 from diagnostic_msgs.msg import DiagnosticStatus, KeyValue
-
 import copy
-
 
 class AbstractTabpageHandler(object):
     """

@@ -1,4 +1,4 @@
-import roslib; roslib.load_manifest('touchosc_handlers')
+import roslib; roslib.load_manifest('touchosc_bridge')
 
 from txosc import osc
 from txosc import dispatch
