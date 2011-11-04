@@ -1,12 +1,3 @@
-# The name and port for OSC interaction.
-name: Mowbot
-port: 9000
-# Print unmatched OSC Messages
-print_fallback: False
-
-# List all handlers here.
-handlers: teleop
-
 # Handler specific information
 teleop:
   # Required parameters

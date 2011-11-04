@@ -28,13 +28,27 @@ if __name__=="__main__":
         try:        
             t = TouchOSCNode()
             handlers = rospy.get_param("~handlers")
-            for handler in [handlers]:
+            default = rospy.get_param("~load_default",False)
+            
+            if handlers:
+                rospy.loginfo("Adding handlers from configuration")
+            for handler in handlers:
                 try:
                     params = rospy.get_param("~" + handler)
+                    h = load_handler(params['pkg'], params['class'])
+                    t.addTabpageHandler(h, handler, params['tabpage_aliases'])
                 except:
-                    raise KeyError("Could not find matching section %s for specified handler"%handler)
-                h = load_handler(params['pkg'], params['class'])
-                t.addTabpageHandler(h, handler, params['tabpage_aliases'])
+                    rospy.logerr("Could not find matching parameter '%s' for specified handler"%handler)
+            
+            if default: 
+                names = set()
+                for tabpage in t.tabpageHandlers.itervalues():
+                    [names.add(n) for n in tabpage.getAllTabpageNames()]
+                try:
+                    layout = rospy.get_param("layout_file")
+                except:
+                    rospy.logerr("Default tabpage requires input parameter 'layout_file'")
+                    rospy.logerr("Default publishers and subscribers will not be created")
 
             reactor.callLater(1.0, t.initializeTabpages)
         except:
