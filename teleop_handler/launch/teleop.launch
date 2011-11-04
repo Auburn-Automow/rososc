@@ -1,5 +1,5 @@
 <launch>
     <node pkg="touchosc_bridge" type="touchosc_bridge.py" name="touchosc_bridge" output="screen">
-        <rosparam command="load" file="$(find touchosc_bridge)/cfg/test.yaml" />
+        <rosparam command="load" file="$(find teleop_handler)/cfg/teleop.yaml" />
     </node>
 </launch>

@@ -1,0 +1,23 @@
+# The name and port for OSC interaction.
+name: Mowbot
+port: 9000
+# Print unmatched OSC Messages
+print_fallback: False
+
+# List all handlers here.
+handlers: teleop
+
+# Handler specific information
+teleop:
+  # Required parameters
+  pkg: teleop_handler
+  class: 'teleoptabpage/TeleopTabpageHandler'
+  tabpage_aliases: [ 'teleop-ipad', 'teleop-ipod' ]
+  
+  max_vx: 0.8
+  max_vy: 0.8
+  max_vw: 0.4
+  max_run_vx: 1.2
+  max_run_vy: 1.2
+  max_run_vw: 1.0
+  min_freq: 5

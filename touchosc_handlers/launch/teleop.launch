@@ -1,5 +1,0 @@
-<launch>
-    <node pkg="touchosc_bridge" type="touchosc_bridge.py" name="touchosc_bridge" output="screen">
-        <param name="config" value="$(find touchosc_handlers)/config/teleop.yaml)"/>
-    </node>
-</launch>

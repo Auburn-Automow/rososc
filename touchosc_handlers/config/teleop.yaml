@@ -1,4 +1,0 @@
-teleop:
-    package: "touchosc_handlers"
-    handler: "teleoptabpage/TeleopTabpageHandler"
-    alias: ["teleop-ipod", "teleop-ipad"]

@@ -1,10 +1,10 @@
-import roslib; roslib.load_manifest('touchosc_handlers')
+import roslib; roslib.load_manifest('teleop_handler')
 import rospy
 
 from txosc import osc
 from geometry_msgs.msg import Twist
 
-from touchosc_bridge import AbstractTabpageHandler
+from touchoscnode import AbstractTabpageHandler
 from twisted.internet import reactor
 
 import socket
@@ -15,15 +15,16 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
                  max_run_vx = 1.0, max_run_vy = 1.0, max_run_vw = 1.0,
                  run = False):
         super(TeleopTabpageHandler, self).__init__(nodeName, tabpageName, tabpageAlias)
-        
-        self.max_vx = rospy.get_param("~max_vx",max_vx)
-        self.max_vy = rospy.get_param("~max_vy",max_vy)
-        self.max_vw = rospy.get_param("~max_vw",max_vw)
-        self.max_run_vx = rospy.get_param("~max_run_vx",max_run_vx)
-        self.max_run_vy = rospy.get_param("~max_run_vy",max_run_vy)
-        self.max_run_vw = rospy.get_param("~max_run_vw",max_run_vw)
-        self.running = rospy.get_param("~run", run)
-        self.minPublishFreq = rospy.get_param("~min_freq",10) 
+                
+        pref = "~" + tabpageName + "/"
+        self.max_vx = rospy.get_param(pref+"max_vx",max_vx)
+        self.max_vy = rospy.get_param(pref+"max_vy",max_vy)
+        self.max_vw = rospy.get_param(pref+"max_vw",max_vw)
+        self.max_run_vx = rospy.get_param(pref+"max_run_vx",max_run_vx)
+        self.max_run_vy = rospy.get_param(pref+"max_run_vy",max_run_vy)
+        self.max_run_vw = rospy.get_param(pref+"max_run_vw",max_run_vw)
+        self.running = rospy.get_param(pref+"run", run)
+        self.minPublishFreq = rospy.get_param(pref+"min_freq",10) 
         
         self.pub = rospy.Publisher("cmd_vel",Twist)
         
@@ -55,8 +56,10 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         self.running = False    
         
     def publish_cmd(self):
-        if self.masterOsc:
-            self.sendToClient(osc.Message('control',1.0), self.masterOsc)       
+        if self.masterOsc and self.masterOsc not in self.activeClients:
+                self.sendToAll(osc.Bundle([osc.Message('control',0.0),
+                                           osc.Message('master','')]))
+                self.masterOsc = None
         self.pub.publish(self.cmd)
         reactor.callLater(1.0/self.minPublishFreq, self.publish_cmd)
     
@@ -89,17 +92,37 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
                 self.activeClients[sendAddress[0]] = addressList[0]
             if not self.masterOsc and valueList[0] == 1.0:
                 self.masterOsc = sendAddress[0]
-                name = socket.gethostbyaddr(self.masterOsc)
-                name = name[0].split(".")[0]
+                try:
+                    name = socket.gethostbyaddr(self.masterOsc)
+                    name = name[0].split(".")[0]
+                except:
+                    name = self.masterOsc
                 self.sendToClient(osc.Message('control',1.0), self.masterOsc)
                 self.sendToAll(osc.Message('master',name))
             elif self.masterOsc and valueList[0] == 0.0:
-                self.sendToClient(osc.Message('control',0.0), self.masterOsc)
+                self.sendToAll(osc.Bundle([osc.Message('control',0.0),
+                                           osc.Message('master','')]))
                 self.masterOsc = None
-                self.sendToAll(osc.Message('master',''))
                     
     def turbo_callback(self, addressList, valueList, sendAddress):
-        pass
+        if sendAddress[0] == self.masterOsc and len(addressList) == 2:
+            if valueList[0] == 1.0:
+                message = osc.Message("turbo",valueList[0])
+                self.sendToAll(message)
+                self.running = True
+            elif valueList[0] == 0.0:
+                message = osc.Message("turbo",valueList[0])
+                self.sendToAll(message)
+                self.running = False
+    
+    def tabpageClosedCallback(self, client, tabpage):
+        if client[0] in self.activeClients:
+            del self.activeClients[client[0]]
+        if client[0] == self.masterOsc:
+            self.sendToAll(osc.Bundle([osc.Message('control',0.0),
+                                       osc.Message('master','')]))
+            self.masterOsc = None
+            
 
         
         

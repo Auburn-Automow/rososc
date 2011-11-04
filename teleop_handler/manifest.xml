@@ -1,0 +1,16 @@
+<package>
+  <description brief="teleop_handler">
+
+     TouchOSC layout and tabpage handler for publishing teleop messages with an iPhone or iPad.
+
+  </description>
+  <author>Michael Carroll</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/teleop_handler</url>
+  <depend package="touchosc_bridge"/>
+  <depend package="geometry_msgs"/>
+
+</package>
+
+

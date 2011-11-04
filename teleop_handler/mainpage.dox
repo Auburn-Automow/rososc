@@ -2,7 +2,7 @@
 \mainpage
 \htmlinclude manifest.html
 
-\b touchosc_handlers is ... 
+\b teleop_handler is ... 
 
 <!-- 
 Provide an overview of your package.
