@@ -11,7 +11,7 @@
   <url>http://ros.org/wiki/diagnostics_handler</url>
   <depend package="touchosc_bridge"/>
   <depend package="rospy"/>
-  <depend package="diagnostics_msgs"/>
+  <depend package="diagnostic_msgs"/>
 
 </package>
 
