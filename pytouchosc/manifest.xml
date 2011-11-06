@@ -1,7 +1,11 @@
 <package>
   <description brief="pytouchosc">
 
-     pytouchosc
+      PyTouchOSC is a Python module for interacting with *.touchosc layout files.  It
+      provides a set of utilities for parsing tabpages and controls out of files created
+      with the TouchOSC Editor application.
+
+      Also included is a node for hosting layout files and transferring them to iOS devices.
 
   </description>
   <author>Michael Carroll</author>

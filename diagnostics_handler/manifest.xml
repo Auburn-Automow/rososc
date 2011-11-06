@@ -1,0 +1,17 @@
+<package>
+  <description brief="diagnostics_handler">
+
+     diagnostics_handler
+
+  </description>
+  <author>Michael Carroll</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/diagnostics_handler</url>
+  <depend package="touchosc_bridge"/>
+  <depend package="rospy"/>
+  <depend package="diagnostics_msgs"/>
+
+</package>
+
+

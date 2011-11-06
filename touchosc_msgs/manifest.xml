@@ -1,7 +1,8 @@
 <package>
   <description brief="touchosc_msgs">
 
-     touchosc_msgs
+      Package containing messages Published and Subscribed to by the default tabpage
+      handler in touchosc_bridge.
 
   </description>
   <author>Michael Carroll</author>

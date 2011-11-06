@@ -1,7 +1,15 @@
 <package>
   <description brief="touchosc_bridge">
 
-     osc_bridge
+      TouchOSC_bridge provides the core functionality of communicating with ROS and the
+      TouchOSC iOS application.
+
+      It provides a standard interface to commmon TouchOSC features, such as accessing the
+      acclerometer data, diagnostics data, active clients and tabpages, as well as the 
+      ability to make iPhones vibrate.
+
+      Also included is a default tabpage handler for tabpages with no specified Python
+      module.
 
   </description>
   <author>Michael Carroll</author>

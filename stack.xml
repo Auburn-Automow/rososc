@@ -1,9 +1,12 @@
 <stack>
-  <description brief="rososc">rososc</description>
+  <description brief="rososc">
+  ROS OSC is a collection of nodes and utilities for interacting with Open Sound Control hardware and software devices.  It consists of a general ROS-OSC bridge, as well as nodes for interacting with the TouchOSC iPhone, iPad, and Android application.
+  </description>
   <author>Maintained by Michael Carroll</author>
   <license>BSD</license>  
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/rososc</url>
   <depend stack="ros" />
+
 
 </stack>
