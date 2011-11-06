@@ -70,7 +70,7 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
             vx = self.max_run_vx if self.running else self.max_vx
             vy = self.max_run_vy if self.running else self.max_vy
             self.cmd.linear.x = max(min(valueList[0] * vx,vx),-vx)
-            self.cmd.linear.y = max(min(valueList[1] * vy,vy),-vy)
+            self.cmd.linear.y = max(min(valueList[1] * -vy,vy),-vy)
         elif sendAddress[0] == self.masterOsc and valueList[0] == 0.0:
             self.cmd.linear.x = 0.0
             self.cmd.linear.y = 0.0
@@ -81,7 +81,7 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
             self.sendToAllOtherActive(osc.Message('w', *valueList),
                                       self.masterOsc)
             vw = self.max_run_vw if self.running else self.max_vw
-            self.cmd.angular.z = max(min(valueList[0] * vw,vw),-vw)
+            self.cmd.angular.z = max(min(valueList[0] * -vw,vw),-vw)
         elif sendAddress[0] == self.masterOsc and valueList[0] == 0.0:
             self.cmd.angular.z = 0.0
         self.pub.publish(self.cmd)
