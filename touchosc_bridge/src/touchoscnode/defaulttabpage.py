@@ -150,7 +150,7 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
             (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
             if list(msg.values) != ctDict[None]:
                 ctDict[None] = list(msg.values)
-                toSend.append(osc.Message(address,*ctDict[None]))
+                toSend.append(osc.Message(control,*ctDict[None]))
             if msg.header.frame_id != '':
                 self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
             else:
@@ -159,9 +159,9 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
     def xypad_ros_cb(self, msg):
         if msg._connection_header['callerid'] != self.nodeName:
             (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
-            if list(msg.values) != ctDict[None]:
-                ctDict[None] = list(msg.values)
-                toSend.append(osc.Message(address,*ctDict[None]))
+            if [msg.x, msg.y] != ctDict[None]:
+                ctDict[None] = [msg.x, msg.y]
+                toSend.append(osc.Message(control,*ctDict[None]))
             if msg.header.frame_id != '':
                 self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
             else:
