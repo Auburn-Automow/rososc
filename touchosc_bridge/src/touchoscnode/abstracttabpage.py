@@ -119,10 +119,16 @@ class AbstractTabpageHandler(object):
                 for m in e.getMessages():
                     newBundle.add(osc.Message('/'.join([basename,m.address]),
                                               *m.getValues()))
-                self.__oscSendToAllOthers(newBundle, exclude)
+                if len(self.activeClients) == 0:
+                    self.__oscSendToAll(newBundle)
+                else:
+                    self.__oscSendToAllOthers(newBundle, exclude)
             elif type(e) is osc.Message:
                 e.address = '/'.join([basename,e.address])
-                self.__oscSendToAllOthers(e, exclude) 
+                if len(self.activeClients) == 0:
+                    self.__oscSendToAll(e) 
+                else:
+                    self.__oscSendToAllOthers(e,exclude)
     
     def sendToActive(self, element):
         """
@@ -161,7 +167,6 @@ class AbstractTabpageHandler(object):
         """
         if client[0] not in self.activeClients:
             self.activeClients[client[0]] = tabpage
-        print self.activeClients
     
     def tabpageClosedCallback(self, client, tabpage):
         """

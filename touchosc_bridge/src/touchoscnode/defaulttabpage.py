@@ -70,70 +70,103 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
                 if osc_cb:
                     self.addOscCallback(control.name, osc_cb)    
     
+    def osc_populate_common(self, msg):
+        topic = msg._connection_header['topic'].split('/')
+        tabpageName = topic[2]
+        controlName = topic[3]
+        toSend = []
+        ctDict = self.messageDict[controlName]
+        if msg.common.color != '':
+            toSend.append(osc.Message('/'.join([controlName,'color']), 
+                                      msg.common.color))
+            ctDict['color'] = msg.common.color
+        if msg.common.x != 0 and msg.common.x != int(ctDict['position']['x']):
+            toSend.append(osc.Message('/'.join([controlName,'position/x']), 
+                                      msg.common.x))
+            ctDict['position']['x'] = msg.common.x
+        if msg.common.y != 0 and msg.common.y != int(ctDict['position']['y']):
+            toSend.append(osc.Message('/'.join([controlName,'position/y']), 
+                                      msg.common.y))
+            ctDict['position']['y'] = msg.common.y
+        if msg.common.width != 0 and msg.common.width != int(ctDict['size']['w']):
+            toSend.append(osc.Message('/'.join([controlName,'size/w']), 
+                                      msg.common.width))
+            ctDict['size']['w'] = msg.common.width
+        if msg.common.height != 0 and msg.common.height != int(ctDict['size']['h']):
+            toSend.append(osc.Message('/'.join([controlName,'size/h']), 
+                                      msg.common.height))
+            ctDict['size']['h'] = msg.common.height
+        if msg.common.visible != '':
+            send = 0 if msg.common.visible.lower() == 'false' else 1
+            if bool(send) != bool(ctDict['visibility']):
+                toSend.append(osc.Message('/'.join([controlName,'visible']),
+                                          send))
+                ctDict['visibility'] = bool(send)
+        return (tabpageName, controlName, ctDict, toSend)
+    
     def common_ros_cb(self, msg):
-        if type(msg) is not touchosc_msgs.msg.TouchOSC_Common:
-            msg = msg.common
-        ctDict = self.messageDict[msg.name]
-        address = '/' + msg.tabpage + '/' + msg.name
-        if msg.color != ctDict['color']:
-            print "Sending color to %s"%address
-            self.osc_send(osc.Message(address + '/color', msg.color))
-            ctDict['color'] = msg.color
-#        if msg.x != int(ctDict['position']['x']):
-#            self.osc_send(osc.Message(address + '/position/x', msg.x))
-#        if msg.y != int(ctDict['position']['y']):
-#            self.osc_send(osc.Message(address + '/position/x', msg.y))
-#        if msg.width != int(ctDict['size']['w']):
-#            self.osc_send(osc.Message(address+ '/size/w', msg.width))
-#        if msg.height != int(ctDict['size']['h']):
-#            self.osc_send(osc.Message(address+ '/size/h', msg.height))
-#        if msg.visibility != bool(ctDict['visibility']):
-#            self.osc_send(osc.Message(address+'/visibility', msg.visibility))
+        if msg._connection_header['callerid'] != self.nodeName:
+            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
+            if msg.header.frame_id != '':
+                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
+            else:
+                self.sendToAll(osc.Bundle(toSend))
     
     def scalableControl_ros_cb(self, msg):
-        self.common_ros_cb(msg.common)
-        ctDict = self.messageDict[msg.common.name]
-        address = '/' + msg.common.tabpage + '/' + msg.common.name
-        if msg.value != ctDict[None]:
-            ctDict[None] = msg.value
-            self.osc_send(osc.Message(address, msg.value))
+        if msg._connection_header['callerid'] != self.nodeName:
+            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
+            if msg.value != ctDict[None]:
+                ctDict[None] = msg.value
+                toSend.append(osc.Message(control, msg.value))
+            if msg.header.frame_id != '':
+                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
+            else:
+                self.sendToAll(osc.Bundle(toSend))
 
     def label_ros_cb(self, msg):
-        self.common_ros_cb(msg.common)
-        ctDict = self.messageDict[msg.common.name]
-        address = '/' + msg.common.tabpage + '/' + msg.common.name
-        if str(msg.value) != ctDict['text']:
-            ctDict['text'] = str(msg.value)
-            self.osc_send(osc.Message(address, ctDict['text']))
+        if msg._connection_header['callerid'] != self.nodeName:
+            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
+            if msg.value != ctDict['text']:
+                ctDict['text'] = msg.value
+                toSend.append(osc.Message(control, msg.value))
+            if msg.header.frame_id != '':
+                print "send to client %s"%msg.header.frame_id
+                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
+            else:
+                self.sendToAll(osc.Bundle(toSend))
             
     def multibutton_ros_cb(self, msg):
-        self.common_ros_cb(msg.common)
-        ctDict = self.messageDict[msg.common.name]
-        address = '/' + msg.common.tabpage + '/' + msg.common.name
-        if list(msg.values) != ctDict[None]:
-            ctDict[None] = list(msg.values)
-            message = osc.Message(address,*msg.values)
-            self.osc_send(message)
+        if msg._connection_header['callerid'] != self.nodeName:
+            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
+            if list(msg.values) != ctDict[None]:
+                ctDict[None] = list(msg.values)
+                toSend.append(osc.Message(control, *msg.value))
+            if msg.header.frame_id != '':
+                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
+            else:
+                self.sendToAll(osc.Bundle(toSend))
             
     def multifader_ros_cb(self, msg):
-        self.common_ros_cb(msg.common)
-        ctDict = self.messageDict[msg.common.name]
-        address = '/' + msg.common.tabpage + '/' + msg.common.name
-        
-        if list(msg.values) != ctDict[None]:
-            ctDict[None] = list(msg.values)
-            message = osc.Message(address,*ctDict[None])
-            self.osc_send(message)
+        if msg._connection_header['callerid'] != self.nodeName:
+            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
+            if list(msg.values) != ctDict[None]:
+                ctDict[None] = list(msg.values)
+                toSend.append(osc.Message(address,*ctDict[None]))
+            if msg.header.frame_id != '':
+                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
+            else:
+                self.sendToAll(osc.Bundle(toSend))
             
     def xypad_ros_cb(self, msg):
-        self.common_ros_cb(msg.common)
-        ctDict = self.messageDict[msg.common.name]
-        address = '/' + msg.common.tabpage + '/' + msg.common.name
-        
-        if ctDict[None][0] != msg.x or ctDict[None][1] != msg.y:
-            ctDict[None] = [msg.x, msg.y]
-            message = osc.Message(address,*ctDict[None])
-            self.osc_send(message)
+        if msg._connection_header['callerid'] != self.nodeName:
+            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
+            if list(msg.values) != ctDict[None]:
+                ctDict[None] = list(msg.values)
+                toSend.append(osc.Message(address,*ctDict[None]))
+            if msg.header.frame_id != '':
+                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
+            else:
+                self.sendToAll(osc.Bundle(toSend))
     
     def scalableControl_osc_cb(self, addressList, valueList, sendAddress):
         tabpageName = addressList[0]
@@ -147,105 +180,100 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
             
         msg = touchosc_msgs.msg.ScalableControl()
         msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = sendAddress[0]
         msg.common = self.populate_common(tabpageName, controlName)
         msg.range = [ctDict['scalef'], ctDict['scalet']]
         msg.z = ctDict['z']
         msg.value = ctDict[None]
         self.ros_publishers[controlName].publish(msg)
 
-    def multibutton_osc_cb(self, message, address):
-        addParts = osc.getAddressParts(message.address)
-        value = message.getValues()
-        
-        tabpageName = addParts[0]
-        controlName = addParts[1]
+    def multibutton_osc_cb(self, addressList, valueList, sendAddress):        
+        tabpageName = addressList[0]
+        controlName = addressList[1]
         ctDict = self.messageDict[controlName]
         
-        if len(addParts) == 3:
-            ctDict['z'] = bool(value[0])
+        if len(addressList) == 3:
+            ctDict['z'] = bool(valueList[0])
         else:
-            x = int(addParts[2]) - 1
-            y = int(addParts[3]) - 1
-            ctDict[None][y + x*ctDict['dim_y']] = value[0]
-        
-        value = message.getValues()
+            x = int(addressList[2]) - 1
+            y = int(addressList[3]) - 1
+            ctDict[None][y + x*ctDict['dim_y']] = valueList[0]
         msg = touchosc_msgs.msg.MultiButton()
         msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = sendAddress[0]
         msg.common = self.populate_common(tabpageName, controlName)
         msg.dimension = [ctDict['dim_x'], ctDict['dim_y']]
+        msg.range = [ctDict['scalef'], ctDict['scalet']]
         msg.z = ctDict['z']
         msg.values = ctDict[None]
         self.ros_publishers[controlName].publish(msg)
     
-    def multifader_osc_cb(self, message, address):
-        addParts = osc.getAddressParts(message.address)
-        value = message.getValues()
-        
-        tabpageName = addParts[0]
-        controlName = addParts[1]
+    def multifader_osc_cb(self, addressList, valueList, sendAddress):
+        tabpageName = addressList[0]
+        controlName = addressList[1]
         ctDict = self.messageDict[controlName]
-        if addParts[2] is 'z':
-            ctDict['z'] = bool(value[0])
+        if addressList[2] is 'z':
+            ctDict['z'] = bool(valueList[0])
         else:
-            pos = int(addParts[2]) - 1
-            ctDict[None][pos] = value[0]  
+            pos = int(addressList[2]) - 1
+            ctDict[None][pos] = valueList[0]  
         msg = touchosc_msgs.msg.MultiFader()
         msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = sendAddress[0]
         msg.common = self.populate_common(tabpageName, controlName)
         msg.dimension = ctDict['number']
+        msg.range = [ctDict['scalef'], ctDict['scalet']]
         msg.z = ctDict['z']
         msg.values = ctDict[None]
         self.ros_publishers[controlName].publish(msg)
     
-    def multixypad_osc_cb(self, message, address):
-        addParts = osc.getAddressParts(message.address)
-        value = message.getValues()
-        
-        tabpageName = addParts[0]
-        controlName = addParts[1]
+    def multixypad_osc_cb(self, addressList, valueList, sendAddress):
+        tabpageName = addressList[0]
+        controlName = addressList[1]
         ctDict = self.messageDict[controlName]
-        touchNumber = int(addParts[2])
+        touchNumber = int(addressList[2])
         
-        if len(addParts) == 4:
-            ctDict['z'][touchNumber - 1] = bool(value[0])
-            if not bool(value[0]):
+        if len(addressList) == 4:
+            ctDict['z'][touchNumber - 1] = bool(valueList[0])
+            if not bool(valueList[0]):
                 ctDict['x'][touchNumber - 1] = 0.0
                 ctDict['y'][touchNumber - 1] = 0.0
         else:
-            ctDict['x'][touchNumber - 1] = value[0]
-            ctDict['y'][touchNumber - 1] = value[1]
-        
+            ctDict['x'][touchNumber - 1] = valueList[0]
+            ctDict['y'][touchNumber - 1] = valueList[1]
+            
         msg = touchosc_msgs.msg.MultiXYPad()
         msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = sendAddress[0]
         msg.common = self.populate_common(tabpageName, controlName)
+        msg.range = [ctDict['scalef'], ctDict['scalet']]
         msg.z = ctDict['z']        
         msg.x = ctDict['x']
         msg.y = ctDict['y']
         self.ros_publishers[controlName].publish(msg)
             
-    def xypad_osc_cb(self, message, address):
-        addParts = osc.getAddressParts(message.address)
-        value = message.getValues()
-        
-        tabpageName = addParts[0]
-        controlName = addParts[1]
+    def xypad_osc_cb(self, addressList, valueList, sendAddress):
+        tabpageName = addressList[0]
+        controlName = addressList[1]
         ctDict = self.messageDict[controlName]
  
-        if len(addParts) == 3:
-            ctDict['z'] = bool(value[0])
+        if len(addressList) == 3:
+            ctDict['z'] = bool(valueList[0])
         else:
-            ctDict[None] = value
+            ctDict[None] = valueList
  
         msg = touchosc_msgs.msg.XYPad()
         msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = sendAddress[0]
         msg.common = self.populate_common(tabpageName, controlName)
+        msg.range = [ctDict['scalef'], ctDict['scalet']]
         msg.x = ctDict[None][0]
         msg.y = ctDict[None][1]
         msg.z = ctDict['z']
         self.ros_publishers[controlName].publish(msg)
         
     def populate_common(self, tabpageName, controlName):
-        commonMsg = touchosc_msgs.msg.TouchOSC_Common()
+        commonMsg = touchosc_msgs.msg.CommonProperties()
         ctDict = self.messageDict[controlName]
         commonMsg.tabpage = tabpageName
         commonMsg.name = controlName
@@ -254,5 +282,5 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         commonMsg.y = int(ctDict['position']['y'])
         commonMsg.width = int(ctDict['size']['w'])
         commonMsg.height = int(ctDict['size']['h'])
-        commonMsg.visibility = ctDict['visibility']
+        commonMsg.visible = str(ctDict['visibility'])
         return commonMsg

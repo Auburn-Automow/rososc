@@ -99,7 +99,6 @@ class Control(etree.ElementBase):
         position = dict()
         position['x'] = self.x
         position['y'] = self.y
-        position['z'] = 0 
         size = dict()
         size['w'] = self.width
         size['h'] = self.height

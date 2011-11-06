@@ -1,5 +1,5 @@
 # TouchOSC Label Control
 
 Header header
-TouchOSC_Common common
+CommonProperties common
 string value
