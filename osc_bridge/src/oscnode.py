@@ -151,12 +151,8 @@ class OSCNode(object):
         """
         if type(client) is tuple: c = client[0]
         else:c = client
-        print c
         with self.clientsLock:
             if self.clients.has_key(c):
-                if type(element) is osc.Bundle:
-                    for m in element.getMessages():
-                        print str(m)
                 self._osc_sender.send(element, self.clients[c].getSendTuple())
     
     def sendToAll(self, element):
@@ -180,7 +176,6 @@ class OSCNode(object):
         """
         if self.clients:
             for client, clientObject in self.clients.iteritems():
-                
                 if client not in excludeClient:
                     self.sendToClient(element, clientObject.getSendTuple()) 
     

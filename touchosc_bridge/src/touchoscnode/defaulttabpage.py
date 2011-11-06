@@ -130,7 +130,6 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
                 ctDict['text'] = msg.value
                 toSend.append(osc.Message(control, msg.value))
             if msg.header.frame_id != '':
-                print "send to client %s"%msg.header.frame_id
                 self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
             else:
                 self.sendToAll(osc.Bundle(toSend))
