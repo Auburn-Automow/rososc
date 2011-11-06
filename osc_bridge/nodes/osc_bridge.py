@@ -11,7 +11,7 @@ from oscnode import OSCNode
 if __name__=="__main__":
     def start():
         try:
-            OSCNode(name="Test", port=8000)
+            OSCNode("Test", 8000)
         except:
             import traceback
             traceback.print_exc()

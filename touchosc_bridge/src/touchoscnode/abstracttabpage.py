@@ -1,4 +1,5 @@
 import roslib; roslib.load_manifest('touchosc_bridge')
+import rospy
 
 from txosc import osc
 from txosc import dispatch

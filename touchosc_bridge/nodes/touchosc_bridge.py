@@ -37,9 +37,12 @@ if __name__=="__main__":
                     try:
                         params = rospy.get_param("~" + handler)
                         h = load_handler(params['pkg'], params['class'])
-                        t.addTabpageHandler(h, handler, params['tabpage_aliases'])
                     except:
                         rospy.logerr("Could not find matching parameter '%s' for specified handler"%handler)
+                    try:
+                        t.addTabpageHandler(h, handler, params['tabpage_aliases'])
+                    except:
+                        rospy.logerr("Could not add handler")
             
             if default: 
                 names = set()
