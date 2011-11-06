@@ -4,6 +4,7 @@ import rospy
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Empty
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
+from touchosc_msgs.msg import Tabpage
 
 from txosc import osc
 from txosc import dispatch
@@ -99,6 +100,13 @@ class TouchOSCNode(oscnode.OSCNode):
             self.__callbackDiagnostic = None
             reactor.callLater(1.0, self.diagnosticsUpdate)
         
+        # Add a tabpage listener    
+        if rospy.get_param("~tabpage_sub", True):
+            self.tabpage_sub = rospy.Subscriber(self.rosName + '/tabpage', Tabpage,
+                                                self.ros_switch_tabpage_cb)
+            
+        self.tabpage_pub = rospy.Publisher(self.rosName + '/tabpage', Tabpage)
+        
         self._osc_receiver.addCallback("/*",self.tabPageSwitchCallback)
         self.tabpages = set()
         self.tabpageHandlers = {}
@@ -126,7 +134,7 @@ class TouchOSCNode(oscnode.OSCNode):
         clientStatus.level = clientStatus.OK
         clientStatus.name = " ".join([self.name,"Client Status"])
         clientStatus.hardware_id = self.name
-        clientStatus.message = "OK"
+        clientStatus.message = "OK, Listening on %d"%self.port
         clientStatus.values = []
         with self.clientsLock:
             for client in self.clients.itervalues():
@@ -135,7 +143,7 @@ class TouchOSCNode(oscnode.OSCNode):
                 clientStatus.values.append(KeyValue(key=client.getName() + " Current",
                                                     value=client.activeTabpage))
                 clientStatus.values.append(KeyValue(key=client.getName() + " Tabpages",
-                                                    value="\n".join(client.tabpages)))
+                                                    value=", ".join(client.tabpages)))
             if len(self.clients) == 0:
                 clientStatus.message = "No clients detected"
         diagnosticsMsg.status.append(clientStatus)
@@ -143,7 +151,15 @@ class TouchOSCNode(oscnode.OSCNode):
             diagnosticsMsg.status.append(tabpage.updateDiagnostics())
         self.diagnostics_pub.publish(diagnosticsMsg)
         reactor.callLater(1.0, self.diagnosticsUpdate)
-        
+     
+    def ros_switch_tabpage_cb(self, msg):
+        if msg._connection_header['callerid'] != self.rosName:
+            if not msg.tabpage.startswith('/'):
+                msg.tabpage = '/' + msg.tabpage    
+            if msg.header.frame_id in self.clients:
+                self.sendToClient(osc.Message(msg.tabpage), client)
+            elif msg.header.frame_id == '':
+                self.sendToAll(osc.Message(msg.tabpage))
     
     def accel_cb(self, addressList, valueList, sendAddress):
         msg = Imu()
@@ -197,6 +213,11 @@ class TouchOSCNode(oscnode.OSCNode):
                 self.tabpageHandlers[tabpage].tabpageActiveCallback(sendAddress,
                                                                     tabpage)
                 alias = self.tabpageHandlers[tabpage].getAllTabpageNames()
+                msg = Tabpage()
+                msg.header.stamp = rospy.Time.now()
+                msg.header.frame_id = sendAddress[0]
+                msg.tabpage = str(tabpage)
+                self.tabpage_pub.publish(msg)
               
             # Send a closed notification to all other handlers
             for page, handler in self.tabpageHandlers.iteritems():
