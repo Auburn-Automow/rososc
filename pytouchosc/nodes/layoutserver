@@ -1,0 +1,62 @@
+#!/usr/bin/env python
+
+import roslib; roslib.load_manifest('pytouchosc')
+import rospy
+import sys
+import os
+
+from pytouchosc.layoutserver import LayoutServer
+
+if __name__ == '__main__':
+    rospy.init_node("osc_layoutserver")
+
+    name = rospy.get_param('~name','OSC Server')
+    port = int(rospy.get_param('~port','9658'))
+    
+    file = rospy.get_param('~layout_file', rospy.get_param('layout_file', None))  
+    
+    if not file:
+        path = rospy.get_param('~layout_path', rospy.get_param('layout_path', None))
+        layouts = rospy.get_param('~layouts', rospy.get_param('layouts', None))
+        rospy.loginfo(path)
+        rospy.loginfo(layouts)
+    
+    if file:
+        try:
+            server = LayoutServer(file,name,port,
+                    debug = rospy.logdebug,
+                    info = rospy.loginfo,
+                    error = rospy.logerr)
+            server.run()
+        except ValueError as e:
+            rospy.logerr(e.msg)
+    elif path and layouts:
+        servers = []
+        portIter = 0
+        for layout in layouts:
+            layoutfile = os.path.join(path,layout)
+            try:
+                servers.append(LayoutServer(layoutfile,layout, port+portIter,
+                                            debug = rospy.loginfo,
+                                            info = rospy.loginfo,
+                                            error = rospy.logerr))
+                rospy.loginfo("Added LayoutServer %s on port %d"%(layout, port+portIter))
+                servers[portIter].run()
+                portIter += 1
+            except ValueError as e:
+                rospy.logerr(e.msg)
+
+        
+    else:
+        rospy.logerr("layout_file and layout_path param not found, exiting")
+        sys.exit(1)
+
+    while True:
+        if rospy.is_shutdown():
+            if file:
+                server.stop()
+            elif path:
+                for server in servers:
+                    server.stop()
+            break
+        rospy.spin()

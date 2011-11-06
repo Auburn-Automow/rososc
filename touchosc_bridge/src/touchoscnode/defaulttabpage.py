@@ -9,14 +9,11 @@ import touchosc_msgs.msg
 import rospy
 
 class DefaultTabpageHandler(AbstractTabpageHandler):
-    def __init__(self, nodeName, layout, tabpageName):
+    def __init__(self, nodeName, tabpageName, tabpage):
         super(DefaultTabpageHandler, self).__init__(nodeName, tabpageName)
         
-        self.layout = layout
-        self.tabpage = self.layout.getTabpage(self.tabpageName)
-        self.osc_node = dispatch.AddressNode(self.tabpageName)
+        self.tabpage = tabpage
         self.messageDict = self.tabpage.getMessages()
-        self.osc_nodes = {}
         
         rosPrefix = self.nodeName + '/' + self.tabpageName + '/'
         
@@ -66,18 +63,12 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
                 osc_cb = None
             
             if msgType is not None:
-                if ros_cb is not None:
-                    self.ros_subscribers[control.name] = rospy.Subscriber(rosPrefix + control.name + '_sub',
-                                                                          msgType,
+                self.ros_subscribers[control.name] = rospy.Subscriber(rosPrefix + control.name, msgType,
                                                                           ros_cb)
-                if osc_cb is not None:
-                    self.ros_publishers[control.name] = rospy.Publisher(rosPrefix + control.name + '_pub',
-                                                                        msgType)
-                    self.osc_nodes[control.name] = dispatch.AddressNode(control.name)
-                    self.osc_nodes[control.name].addCallback("*", osc_cb)
-                    self.osc_nodes[control.name].addCallback("/*", osc_cb)
-                    self.osc_nodes[control.name].addCallback("/*/*", osc_cb)
-                    self.osc_node.addNode(control.name, self.osc_nodes[control.name])
+                self.ros_publishers[control.name] = rospy.Publisher(rosPrefix + control.name, msgType)
+                
+                if osc_cb:
+                    self.addOscCallback(control.name, osc_cb)    
     
     def common_ros_cb(self, msg):
         if type(msg) is not touchosc_msgs.msg.TouchOSC_Common:
@@ -144,20 +135,20 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
             message = osc.Message(address,*ctDict[None])
             self.osc_send(message)
     
-    def scalableControl_osc_cb(self, message, address):
-        tabpageName = osc.getAddressParts(message.address)[0]
-        controlName = osc.getAddressParts(message.address)[1]
+    def scalableControl_osc_cb(self, addressList, valueList, sendAddress):
+        tabpageName = addressList[0]
+        controlName = addressList[1]
         ctDict = self.messageDict[controlName]
         
-        value = message.getValues()
-        if len(osc.getAddressParts(message.address)) == 3:
-            ctDict['z'] = bool(value[0])
+        if len(addressList) == 3:
+            ctDict['z'] = bool(valueList[0])
         else:
-            ctDict[None] = float(value[0])
+            ctDict[None] = float(valueList[0])
             
         msg = touchosc_msgs.msg.ScalableControl()
         msg.header.stamp = rospy.Time.now()
         msg.common = self.populate_common(tabpageName, controlName)
+        msg.range = [ctDict['scalef'], ctDict['scalet']]
         msg.z = ctDict['z']
         msg.value = ctDict[None]
         self.ros_publishers[controlName].publish(msg)

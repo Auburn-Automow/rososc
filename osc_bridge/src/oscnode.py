@@ -94,7 +94,7 @@ class OSCNode(object):
     @ivar _osc_sender: OSC Protocol send interface
     @ivar _osc_receiver: OSC Protocol receiver interface
     """
-    def __init__(self, name, port, regtype='_osc._udp', **kwargs):
+    def __init__(self, oscName, oscPort, regtype='_osc._udp', **kwargs):
         """
         Initialize OSCNode.
         
@@ -107,11 +107,10 @@ class OSCNode(object):
         @type printFallback: C{bool}
         @param printFallback: Enable logging unhandled messages to the console.
         """
-        Node(name, **kwargs)
-        self.name = rospy.get_param("~name", name)
-        self.port = rospy.get_param("~port", port)
+        Node("osc_node",**kwargs)
+        self.name = rospy.get_param("~osc_name", oscName)
+        self.port = rospy.get_param("~port", oscPort)
         self.regtype = rospy.get_param("~regtype", regtype)
-        
         self.rosName = rospy.get_name()
         
         self.printFallback = rospy.get_param("~print_fallback", False)

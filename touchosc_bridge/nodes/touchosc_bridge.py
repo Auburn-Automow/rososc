@@ -3,6 +3,7 @@
 import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 import sys
+import os
 import time
 
 from twisted.internet import reactor
@@ -27,28 +28,49 @@ if __name__=="__main__":
     def start():
         try:        
             t = TouchOSCNode()
-            handlers = rospy.get_param("~handlers")
+            handlers = rospy.get_param("~handlers", None)
             default = rospy.get_param("~load_default",False)
             
             if handlers:
                 rospy.loginfo("Adding handlers from configuration")
-            for handler in handlers:
-                try:
-                    params = rospy.get_param("~" + handler)
-                    h = load_handler(params['pkg'], params['class'])
-                    t.addTabpageHandler(h, handler, params['tabpage_aliases'])
-                except:
-                    rospy.logerr("Could not find matching parameter '%s' for specified handler"%handler)
+                for handler in handlers:
+                    try:
+                        params = rospy.get_param("~" + handler)
+                        h = load_handler(params['pkg'], params['class'])
+                        t.addTabpageHandler(h, handler, params['tabpage_aliases'])
+                    except:
+                        rospy.logerr("Could not find matching parameter '%s' for specified handler"%handler)
             
             if default: 
                 names = set()
                 for tabpage in t.tabpageHandlers.itervalues():
                     [names.add(n) for n in tabpage.getAllTabpageNames()]
-                try:
-                    layout = rospy.get_param("layout_file")
-                except:
-                    rospy.logerr("Default tabpage requires input parameter 'layout_file'")
+                    
+                layoutFile = rospy.get_param("layout_file", None)
+                layoutPath = rospy.get_param("layout_path", None)
+                layouts = rospy.get_param("layouts", None)
+                    
+                if not layoutFile and not layoutPath:
+                    rospy.logerr("Default tabpage requires input parameter 'layout_file' or 'layout_path'")
                     rospy.logerr("Default publishers and subscribers will not be created")
+                if layoutPath and not layouts:
+                    rospy.logerr("Parameter 'layout_path' found without parameter 'layouts'")
+                    rospy.logerr("Default publishers and subscribers will not be created")
+                
+                if layoutFile:
+                    layout = pytouchosc.Layout.createFromExisting(layoutFile)
+                    for tp in layout.getTabpageNames():
+                        if tp not in names:
+                            names.add(tp)
+                            t.addTabpageHandler(DefaultTabpageHandler, tp, layout.getTabpage(tp))
+                elif layoutPath:
+                    for file in layouts:
+                        layout = pytouchosc.Layout.createFromExisting(os.path.join(layoutPath,file))
+                        for tp in layout.getTabpageNames():
+                            if tp not in names:
+                                names.add(tp)
+                                t.addTabpageHandler(DefaultTabpageHandler, tp, layout.getTabpage(tp))
+                            
 
             reactor.callLater(1.0, t.initializeTabpages)
         except:

@@ -81,23 +81,28 @@ class TouchOscClient(oscnode.OscClient):
     
 
 class TouchOSCNode(oscnode.OSCNode):
-    def __init__(self, name='OSC', port=8000, regtype='_osc._udp', **kwargs):
-        super(TouchOSCNode, self).__init__(name, port, regtype, **kwargs)
+    def __init__(self, oscName='ROS OSC', oscPort=8000, regtype='_osc._udp', **kwargs):
+        super(TouchOSCNode, self).__init__(oscName, oscPort, regtype, **kwargs)
         
-        # Handle the accelerometer data from the iPad
-        self._osc_receiver.addCallback("/accxyz", self.accel_cb)
-        self.accel_pub = rospy.Publisher(self.rosName + '/accel', Imu)
+        # Handle the accelerometer data from the device
+        if rospy.get_param("~publish_accel", True):
+            self._osc_receiver.addCallback("/accxyz", self.accel_cb)
+            self.accel_pub = rospy.Publisher(self.rosName + '/accel', Imu)
+            
         # Add an empty message to vibrate compatible clients (iPhones)
-        self.vibrate_sub = rospy.Subscriber(self.rosName + '/vibrate', Empty,
-                                            self.vibrateCallback)
+        if rospy.get_param("~vibrate", True):
+            self.vibrate_sub = rospy.Subscriber(self.rosName + '/vibrate', Empty,
+                                                self.vibrateCallback)
         # Add a diagnostics publisher
-        self.diagnostics_pub = rospy.Publisher("/diagnostics", DiagnosticArray)
+        if rospy.get_param("~publish_diag", True):
+            self.diagnostics_pub = rospy.Publisher("/diagnostics", DiagnosticArray)
+            self.__callbackDiagnostic = None
+            reactor.callLater(1.0, self.diagnosticsUpdate)
         
         self._osc_receiver.addCallback("/*",self.tabPageSwitchCallback)
         self.tabpages = set()
         self.tabpageHandlers = {}
-        self.__callbackDiagnostic = None
-        reactor.callLater(1.0, self.diagnosticsUpdate)
+
         
     def diagnosticsUpdate(self):
         diagnosticsMsg = DiagnosticArray()
@@ -169,7 +174,7 @@ class TouchOSCNode(oscnode.OSCNode):
     def addTabpageHandler(self, tabpageHandler, name, *args):
         self.tabpages.add(name)
         rospy.loginfo("Adding Tabpage: %s"%name)
-        self.tabpageHandlers[name] = tabpageHandler(self.name,name,*args)
+        self.tabpageHandlers[name] = tabpageHandler(self.rosName, name, *args)
         self.tabpageHandlers[name].setSender(self.sendToAll,
                                              self.sendToClient,
                                              self.sendToAllOthers)

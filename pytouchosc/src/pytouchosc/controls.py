@@ -194,6 +194,8 @@ class ScalableControl(Control):
 
     def getSendableMessages(self):
         msg = super(ScalableControl, self).getSendableMessages()
+        msg[self.name]['scalef'] = float(self.scalef)
+        msg[self.name]['scalet'] = float(self.scalet)
         msg[self.name]['z'] = False
         return msg
 
