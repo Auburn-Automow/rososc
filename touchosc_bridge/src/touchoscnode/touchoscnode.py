@@ -157,7 +157,7 @@ class TouchOSCNode(oscnode.OSCNode):
             if not msg.tabpage.startswith('/'):
                 msg.tabpage = '/' + msg.tabpage    
             if msg.header.frame_id in self.clients:
-                self.sendToClient(osc.Message(msg.tabpage), client)
+                self.sendToClient(osc.Message(msg.tabpage), msg.header.frame_id)
             elif msg.header.frame_id == '':
                 self.sendToAll(osc.Message(msg.tabpage))
     
