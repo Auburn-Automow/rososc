@@ -1,0 +1,8 @@
+# Handler specific information
+diagnostics:
+  # Required parameters
+  pkg: diagnostics_handler
+  class: 'diagnosticstabpage/DiagnosticsTabpageHandler'
+  tabpage_aliases: [ 'diagnostics-ipad', 'diagnostics-ipod' ]
+ 
+  start_topic: '/diagnostics'

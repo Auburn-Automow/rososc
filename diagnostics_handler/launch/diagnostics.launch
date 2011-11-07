@@ -1,0 +1,16 @@
+<launch>
+    <node pkg="touchosc_bridge" type="touchosc_bridge.py" name="touchosc_bridge" output="screen">
+        <param name="osc_name" value="ROS Teleop"/>
+        <param name="port" value="9000" />
+        <param name="print_fallback" value="False"/>
+        <param name="load_default" value="False"/>
+        <rosparam param="handlers">[diagnostics]</rosparam>
+        <rosparam command="load" file="$(find diagnostics_handler)/cfg/diagnostics.yaml" />
+    </node>
+
+    <param name="layout_path" value="$(find diagnostics_handler)/layouts" />            
+    <rosparam param="layouts">
+        [ "diag-ipad-vertical.touchosc", "diag-ipod-vertical.touchosc" ]
+    </rosparam>   
+    <node pkg="pytouchosc" type="layoutserver_node" name="layoutserver"/>
+</launch>

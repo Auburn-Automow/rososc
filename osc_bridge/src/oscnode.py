@@ -194,7 +194,7 @@ class OSCNode(object):
                 for clientName, clientAddress in clientList.iteritems():
                     new.add(clientAddress["ip"])
                     if not self.clients.has_key(clientAddress["ip"]):
-                        self.clients[clientAddress["ip"]] = TouchOscClient(clientAddress["ip"],
+                        self.clients[clientAddress["ip"]] = OscClient(clientAddress["ip"],
                                                                       clientAddress["port"],
                                                                       clientName)
                 old = set(self.clients.keys())

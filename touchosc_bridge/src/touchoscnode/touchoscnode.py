@@ -190,6 +190,8 @@ class TouchOSCNode(oscnode.OSCNode):
     def addTabpageHandler(self, tabpageHandler, name, *args):
         self.tabpages.add(name)
         rospy.loginfo("Adding Tabpage: %s"%name)
+        rospy.loginfo("Tabpage Handler: %s"%tabpageHandler)
+        rospy.loginfo("args: %s", args)
         self.tabpageHandlers[name] = tabpageHandler(self.rosName, name, *args)
         self.tabpageHandlers[name].setSender(self.sendToAll,
                                              self.sendToClient,

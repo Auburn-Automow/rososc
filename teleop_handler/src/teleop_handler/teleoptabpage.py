@@ -42,14 +42,15 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         reactor.callLater(1.0/self.minPublishFreq, self.publish_cmd)
         
     def initializeTabpage(self):
+        self.zero_command()
+        
+    def zero_command(self):
         self.sendToAll(osc.Bundle([osc.Message('xy',0.0,0.0),
                                    osc.Message('w',0.0),
                                    osc.Message('control',0.0),
                                    osc.Message('turbo', 0.0),
                                    osc.Message('master',"")]))
-        self.zero_command()
         
-    def zero_command(self):
         self.cmd.linear.x = 0.0
         self.cmd.linear.y = 0.0
         self.cmd.angular.z = 0.0
@@ -57,31 +58,38 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         
     def publish_cmd(self):
         if self.masterOsc and self.masterOsc not in self.activeClients:
-                self.sendToAll(osc.Bundle([osc.Message('control',0.0),
+                self.__oscSendToAll(osc.Bundle([osc.Message('control',0.0),
                                            osc.Message('master','')]))
                 self.masterOsc = None
+        elif self.masterOsc:
+            self.sendToClient(osc.Message('control',1.0), self.masterOsc)
+
         self.pub.publish(self.cmd)
         reactor.callLater(1.0/self.minPublishFreq, self.publish_cmd)
     
     def xypad_callback(self, addressList, valueList, sendAddress):
+        if sendAddress[0] not in self.activeClients:
+                self.activeClients[sendAddress[0]] = addressList[0]
         if sendAddress[0] == self.masterOsc and len(addressList) == 2:
             self.sendToAllOtherActive(osc.Message('xy', *valueList),
                                       self.masterOsc)
             vx = self.max_run_vx if self.running else self.max_vx
             vy = self.max_run_vy if self.running else self.max_vy
             self.cmd.linear.x = max(min(valueList[0] * vx,vx),-vx)
-            self.cmd.linear.y = max(min(valueList[1] * vy,vy),-vy)
+            self.cmd.linear.y = max(min(valueList[1] * -vy,vy),-vy)
         elif sendAddress[0] == self.masterOsc and valueList[0] == 0.0:
             self.cmd.linear.x = 0.0
             self.cmd.linear.y = 0.0
         self.pub.publish(self.cmd)
 
     def w_callback(self, addressList, valueList, sendAddress):
+        if sendAddress[0] not in self.activeClients:
+                self.activeClients[sendAddress[0]] = addressList[0]
         if sendAddress[0] == self.masterOsc and len(addressList) == 2:
             self.sendToAllOtherActive(osc.Message('w', *valueList),
                                       self.masterOsc)
             vw = self.max_run_vw if self.running else self.max_vw
-            self.cmd.angular.z = max(min(valueList[0] * vw,vw),-vw)
+            self.cmd.angular.z = max(min(valueList[0] * -vw,vw),-vw)
         elif sendAddress[0] == self.masterOsc and valueList[0] == 0.0:
             self.cmd.angular.z = 0.0
         self.pub.publish(self.cmd)
@@ -90,21 +98,23 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         if len(addressList) == 2:
             if sendAddress[0] not in self.activeClients:
                 self.activeClients[sendAddress[0]] = addressList[0]
-            if not self.masterOsc and valueList[0] == 1.0:
-                self.masterOsc = sendAddress[0]
-                try:
-                    name = socket.gethostbyaddr(self.masterOsc)
-                    name = name[0].split(".")[0]
-                except:
+                if not self.masterOsc:
                     name = self.masterOsc
+                    self.sendToClient(osc.Message('control',1.0), self.masterOsc)
+                    self.sendToAll(osc.Message('master',name))
+            elif not self.masterOsc and valueList[0] == 1.0:
+                self.masterOsc = sendAddress[0]
+                name = self.masterOsc
                 self.sendToClient(osc.Message('control',1.0), self.masterOsc)
                 self.sendToAll(osc.Message('master',name))
-            elif self.masterOsc and valueList[0] == 0.0:
-                self.sendToAll(osc.Bundle([osc.Message('control',0.0),
-                                           osc.Message('master','')]))
+            elif valueList[0] == 0.0:
+                self.sendToAll(osc.Message('control',0.0))
+                self.sendToAll(osc.Message('master',''))
                 self.masterOsc = None
                     
     def turbo_callback(self, addressList, valueList, sendAddress):
+        if sendAddress[0] not in self.activeClients:
+                self.activeClients[sendAddress[0]] = addressList[0]
         if sendAddress[0] == self.masterOsc and len(addressList) == 2:
             if valueList[0] == 1.0:
                 message = osc.Message("turbo",valueList[0])
