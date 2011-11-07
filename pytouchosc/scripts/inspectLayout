@@ -40,7 +40,11 @@ def main(argv, stdout):
     print divider
     print string.format("Version", layout.version)
     print string.format("Orientation", layout.orientation)
-    print string.format("Mode (Device)", layout.mode)
+    if layout.mode == '0':
+        m = "iPod"
+    elif layout.mode == '1':
+        m = "iPad"
+    print string.format("Mode (Device)", layout.mode + "-" + m)
     print divider
     if options.tabpages:
         print string.format("Number of Tabpages", layout.getNumberTabpages())
@@ -50,7 +54,9 @@ def main(argv, stdout):
         for name in layout.getTabpageNames():
             tabpage = layout.getTabpage(name)
             for x in tabpage.iterchildren():
-                print "/".join(["", name, x.name])
+                controlName = "/".join(["", name, x.name])
+                controlClass =  x.__class__.__name__
+                print '{:<30}{:<30}'.format(controlName,controlClass)
 
     
 if __name__ == "__main__":
