@@ -17,6 +17,21 @@ import threading
 import sys
 import logging
 
+class BonjourClient():
+    def __init__(self):
+        self.serviceName = None
+        self.hostname = None
+        self.ip = None
+        self.port = None
+        self.resolved = False
+        
+    def __str__(self):
+        string = "ServiceName: %s\n"%self.serviceName
+        string+= "Hostname:    %s\n"%self.hostname
+        string+= "IP:          %s\n"%self.ip
+        string+= "Port:        %s\n"%self.port
+        return string
+
 class Bonjour():
     """
     Wraps the pybonjour package to provide helper functions for registering a 
@@ -71,8 +86,7 @@ class Bonjour():
         #: Dictionary of clients detected by the Bonjour browser.  The browser
         # will maintain a list of the clients that are currently active, and 
         # will prune clients as they leave the network.
-        self.clients = dict()
-        #: Lock for modifying the dictionary of clients.
+        self.clients = dict()       
         self.clientLock = threading.Lock()
         self.client_callback = None
 
@@ -87,7 +101,14 @@ class Bonjour():
             return self.__getClients()
      
     def __getClients(self):
-        return self.clients
+        returnDict = {}
+        for serviceName, client in self.clients.iteritems():
+            if client.resolved:
+                returnDict[serviceName] = {"servicename": serviceName,
+                                           "hostname": client.hostname,
+                                           "ip": client.ip,
+                                           "port": client.port}
+        return returnDict
         
     def setClientCallback(self, callback):
         """
@@ -210,14 +231,15 @@ class Bonjour():
         if errorCode == pybonjour.kDNSServiceErr_NoError:
             if not fullname.endswith(u'.'):
                 fullname += u'.'
-            with self.clientLock:
-                name = fullname.decode('utf-8')
-                if self.clients.has_key(name):
-                    self.clients[name]["ip"] = socket.inet_ntoa(rdata)
-                    if self.client_callback:
-                        self.client_callback(self.__getClients())
-                else:
-                    self.debug("Query Record Failed on: %s"%name)
+                
+            for client in self.clients.itervalues():
+                if sdRef == client.query_sdRef:
+                    client.ip = socket.inet_ntoa(rdata)
+                    client.resolved = True
+                    break;
+            
+            if self.client_callback:
+                self.client_callback(self.__getClients())
             self.queried.append(True)
 
     def removed_callback(self, sdRef, flags, interfaceIndex, errorCode, 
@@ -228,11 +250,15 @@ class Bonjour():
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
             with self.clientLock:
-                if self.clients.has_key(hosttarget.decode('utf-8')):
-                    del self.clients[hosttarget.decode('utf-8')]
-                    if self.client_callback:
-                        self.client_callback(self.__getClients())
-
+                for client in self.clients.itervalues():
+                    if sdRef == client.resolve_sdRef:
+                        removed = True
+                        break;
+                if removed:
+                    del self.clients[client.serviceName]
+                
+                if self.client_callback:
+                    self.client_callback(self.__getClients())
    
     def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, 
                          fullname, hosttarget, port, txtRecord):
@@ -246,26 +272,34 @@ class Bonjour():
                 self.debug("Resolved Self")
             else:
                 localhost = False
-            with self.clientLock:
-                name = hosttarget.decode('utf-8')
-                if not self.clients.has_key(name) and not localhost:
-                    self.clients[name] = {"port":port}
-            query_sdRef = \
+            
+            
+            for client in self.clients.itervalues():
+                if sdRef == client.resolve_sdRef:
+                    client.hostname = hosttarget.decode('utf-8')
+                    client.port = port
+                    break;
+            if localhost:
+                del self.clients[client.serviceName]  
+                return       
+
+            
+            client.query_sdRef = \
                     pybonjour.DNSServiceQueryRecord(interfaceIndex=interfaceIndex,
                                                     fullname=hosttarget,
                                                     rrtype=pybonjour.kDNSServiceType_A,
                                                     callBack=self.query_record_callback)
             try:
                 while not self.queried:
-                    ready = select.select([query_sdRef], [], [], self.timeout)
-                    if query_sdRef not in ready[0]:
-                        self.error("Query record timed out")
+                    ready = select.select([client.query_sdRef], [], [], self.timeout)
+                    if client.query_sdRef not in ready[0]:
+                        self.debug("Query record timed out")
                         break
-                    pybonjour.DNSServiceProcessResult(query_sdRef)
+                    pybonjour.DNSServiceProcessResult(client.query_sdRef)
                 else:
                     self.queried.pop()
             finally:
-                query_sdRef.close()
+                client.query_sdRef.close()
             self.resolved.append(True)
         else:
             self.error("Resolve failed with code: %s" % errorCode)
@@ -277,49 +311,65 @@ class Bonjour():
         """
         if errorCode != pybonjour.kDNSServiceErr_NoError:
             return
+        
+        # Handle a removed client
         if not (flags & pybonjour.kDNSServiceFlagsAdd):
-            resolve_sdRef = pybonjour.DNSServiceResolve(0,
-                                                        interfaceIndex,
-                                                        serviceName,
-                                                        regtype,
-                                                        replyDomain,
-                                                        self.removed_callback)
+            with self.clientLock:
+                if self.clients.has_key(serviceName):
+                    c = self.clients[serviceName]
+                else:
+                    return
+            c.resolve_sdRef = pybonjour.DNSServiceResolve(0,
+                                                          interfaceIndex,
+                                                          serviceName,
+                                                          regtype,
+                                                          replyDomain,
+                                                          self.removed_callback)
             try:
                 while not self.resolved:
-                    ready = select.select([resolve_sdRef], [], [], self.timeout)
-                    if resolve_sdRef not in ready[0]:
-                        self.error("Remove resolve timed out")
+                    ready = select.select([c.resolve_sdRef], [], [], self.timeout)
+                    if c.resolve_sdRef not in ready[0]:
+                        self.debug("Remove resolve timed out")
                         break
-                    pybonjour.DNSServiceProcessResult(resolve_sdRef)
+                    pybonjour.DNSServiceProcessResult(c.resolve_sdRef)
                 else:
                     self.resolved.pop()
             finally:
-                resolve_sdRef.close()
+                c.resolve_sdRef.close()
             return
 
-        self.debug("Service Added, Resolving")
 
-        resolve_sdRef = pybonjour.DNSServiceResolve(0,
-                                                    interfaceIndex,
-                                                    serviceName,
-                                                    regtype,
-                                                    replyDomain,
-                                                    self.resolve_callback)
+        with self.clientLock:
+            if self.clients.has_key(serviceName):
+                if self.clients[serviceName].resolved:
+                    return
+                c = self.clients[serviceName]
+            else:
+                self.clients[serviceName] = BonjourClient()
+                c = self.clients[serviceName]
+        c.serviceName = serviceName
+        c.resolve_sdRef = pybonjour.DNSServiceResolve(0,
+                                                      interfaceIndex,
+                                                      serviceName,
+                                                      regtype,
+                                                      replyDomain,
+                                                      self.resolve_callback)
         try:
             while not self.resolved:
-                ready = select.select([resolve_sdRef], [], [], self.timeout)
-                if resolve_sdRef not in ready[0]:
-                    self.error("Resolve timed out")
+                ready = select.select([c.resolve_sdRef], [], [], self.timeout)
+                if c.resolve_sdRef not in ready[0]:
+                    self.debug("Resolve timed out")
                     break
-                pybonjour.DNSServiceProcessResult(resolve_sdRef)
+                pybonjour.DNSServiceProcessResult(c.resolve_sdRef)
             else:
                 self.resolved.pop()
         finally:
-            resolve_sdRef.close()
+            c.resolve_sdRef.close()
 
 def client_callback(clients):
-    logging.loginfo("Client List Updated: " + str(clients))
-
+    print clients
+    
+    
 def main(argv, stdout):
     """
     Main function for when the script gets called on the command line.  Takes a 
@@ -360,7 +410,7 @@ def main(argv, stdout):
     import time
     try:
         while True:
-            time.sleep(1)
+            time.sleep(5)
     except KeyboardInterrupt:
         osc_bonjour.shutdown()
         sys.exit(0)
