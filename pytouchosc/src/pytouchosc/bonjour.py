@@ -24,12 +24,12 @@ class BonjourClient():
         self.ip = None
         self.port = None
         self.resolved = False
-        
+
     def __str__(self):
-        string = "ServiceName: %s\n"%self.serviceName
-        string+= "Hostname:    %s\n"%self.hostname
-        string+= "IP:          %s\n"%self.ip
-        string+= "Port:        %s\n"%self.port
+        string = "ServiceName: %s\n" % self.serviceName
+        string += "Hostname:    %s\n" % self.hostname
+        string += "IP:          %s\n" % self.ip
+        string += "Port:        %s\n" % self.port
         return string
 
 class Bonjour():
@@ -55,7 +55,7 @@ class Bonjour():
         self.debug = logging.debug
         self.info = logging.info
         self.error = logging.error
-        
+
         if debug:
             self.debug = debug
         if error:
@@ -80,13 +80,13 @@ class Bonjour():
 
         self.timeout = 2
         self.queried = []
-        self.resolved = [] 
+        self.resolved = []
         self._isBrowserRunning = False
         self._isRegisterRunning = False
         #: Dictionary of clients detected by the Bonjour browser.  The browser
         # will maintain a list of the clients that are currently active, and 
         # will prune clients as they leave the network.
-        self.clients = dict()       
+        self.clients = dict()
         self.clientLock = threading.Lock()
         self.client_callback = None
 
@@ -99,7 +99,7 @@ class Bonjour():
         """
         with self.clientLock:
             return self.__getClients()
-     
+
     def __getClients(self):
         returnDict = {}
         for serviceName, client in self.clients.iteritems():
@@ -109,7 +109,7 @@ class Bonjour():
                                            "ip": client.ip,
                                            "port": client.port}
         return returnDict
-        
+
     def setClientCallback(self, callback):
         """
         Set a callback for when clients are added/removed from the client list
@@ -117,8 +117,8 @@ class Bonjour():
         Callback signature is: callback(clientDict)
         """
         self.client_callback = callback
-        
-    def run_browser(self, daemon = False):
+
+    def run_browser(self, daemon=False):
         """
         Run the Bonjour service browser
         """
@@ -137,7 +137,7 @@ class Bonjour():
             self.browser_t.join()
             del self.browser_t
 
-    def run_register(self, daemon = False):
+    def run_register(self, daemon=False):
         """
         Run the Bonjour service registration
         """
@@ -156,7 +156,7 @@ class Bonjour():
             self.register_t.join()
             del self.register_t
 
-    def run(self, daemon = False):
+    def run(self, daemon=False):
         """
         Run both the worker threads for registration and browsing
         """
@@ -184,7 +184,7 @@ class Bonjour():
                     ready = select.select([browse_sdRef], [], [], self.timeout)
                     if browse_sdRef in ready[0]:
                         pybonjour.DNSServiceProcessResult(browse_sdRef)
-            except Exception: 
+            except Exception:
                 self.error("Exception in Browser")
                 pass
         finally:
@@ -219,7 +219,7 @@ class Bonjour():
         Callback used by the run_regsiter routine.
         """
         if errorCode == pybonjour.kDNSServiceErr_NoError:
-            self.info("Bonjour Service Registered at %s" % 
+            self.info("Bonjour Service Registered at %s" %
                       (self.fullname.decode('utf-8')))
 
     def query_record_callback(self, sdRef, flags, interfaceIndex, errorCode,
@@ -231,18 +231,18 @@ class Bonjour():
         if errorCode == pybonjour.kDNSServiceErr_NoError:
             if not fullname.endswith(u'.'):
                 fullname += u'.'
-                
+
             for client in self.clients.itervalues():
                 if sdRef == client.query_sdRef:
                     client.ip = socket.inet_ntoa(rdata)
                     client.resolved = True
                     break;
-            
+
             if self.client_callback:
                 self.client_callback(self.__getClients())
             self.queried.append(True)
 
-    def removed_callback(self, sdRef, flags, interfaceIndex, errorCode, 
+    def removed_callback(self, sdRef, flags, interfaceIndex, errorCode,
                          fullname, hosttarget, port, txtRecord):
         """
         Callback for removing hosts that have been detected through the browse 
@@ -256,11 +256,11 @@ class Bonjour():
                         break;
                 if removed:
                     del self.clients[client.serviceName]
-                
+
                 if self.client_callback:
                     self.client_callback(self.__getClients())
-   
-    def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode, 
+
+    def resolve_callback(self, sdRef, flags, interfaceIndex, errorCode,
                          fullname, hosttarget, port, txtRecord):
         """
         Callback for resolving hosts that have been detected through the browse 
@@ -272,18 +272,16 @@ class Bonjour():
                 self.debug("Resolved Self")
             else:
                 localhost = False
-            
-            
             for client in self.clients.itervalues():
                 if sdRef == client.resolve_sdRef:
                     client.hostname = hosttarget.decode('utf-8')
                     client.port = port
                     break;
             if localhost:
-                del self.clients[client.serviceName]  
-                return       
+                if self.clients.has_key(client.serviceName):
+                    del self.clients[client.serviceName]
+                return
 
-            
             client.query_sdRef = \
                     pybonjour.DNSServiceQueryRecord(interfaceIndex=interfaceIndex,
                                                     fullname=hosttarget,
@@ -304,14 +302,14 @@ class Bonjour():
         else:
             self.error("Resolve failed with code: %s" % errorCode)
 
-    def browse_callback(self, sdRef, flags, interfaceIndex, errorCode, 
+    def browse_callback(self, sdRef, flags, interfaceIndex, errorCode,
                         serviceName, regtype, replyDomain):
         """
         Callback for browsing hosts of type "regtype" on the network.
         """
         if errorCode != pybonjour.kDNSServiceErr_NoError:
             return
-        
+
         # Handle a removed client
         if not (flags & pybonjour.kDNSServiceFlagsAdd):
             with self.clientLock:
@@ -368,8 +366,8 @@ class Bonjour():
 
 def client_callback(clients):
     print clients
-    
-    
+
+
 def main(argv, stdout):
     """
     Main function for when the script gets called on the command line.  Takes a 
@@ -395,7 +393,7 @@ def main(argv, stdout):
         numeric_level = options.logging.upper()
     else:
         numeric_level = None
-        
+
     logging.basicConfig(level=numeric_level)
     osc_bonjour = Bonjour(name=options.name,
                           port=options.port,

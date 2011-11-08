@@ -6,18 +6,18 @@ import sys
 
 from twisted.internet import reactor
 
-from oscnode import OSCNode
+from oscinterface import OscInterface
 
-if __name__=="__main__":
+if __name__ == "__main__":
     def start():
         try:
-            OSCNode("Test", 8000)
+            OscInterface("Test", 8000)
         except:
             import traceback
             traceback.print_exc()
-            print >> sys.stderr, "Caught exception during startup. Shutting down."
-            reactor.fireSystemEvent('shutdown')  
+            print >> sys.stderr, "Caught exception during startup."
+            reactor.fireSystemEvent('shutdown')
 
-    reactor.addSystemEventTrigger('before','startup', start)
+    reactor.addSystemEventTrigger('before', 'startup', start)
     reactor.callInThread(rospy.spin)
     reactor.run()
