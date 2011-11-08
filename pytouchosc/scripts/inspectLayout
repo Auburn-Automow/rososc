@@ -9,8 +9,8 @@ import pytouchosc
 
 def main(argv, stdout):
     parser = OptionParser()
-    parser.add_option("-t", action="store_true", dest="tabpages")
-    parser.add_option("-c", action="store_true", dest="controls")
+    parser.add_option("-t", help="List tabpages in this layout", action="store_true", dest="tabpages")
+    parser.add_option("-c", help="List controls addresses and types in this layout",action="store_true", dest="controls")
     (options, args) = parser.parse_args(argv)
     
     if len(args) <  2:

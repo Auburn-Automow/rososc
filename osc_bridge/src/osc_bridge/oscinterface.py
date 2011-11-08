@@ -37,44 +37,51 @@ class OscClient(object):
         @param port: Port that the OSCClient receives on.
         """
         if type(address) is str:
-            self.address = address
+            self.__address = address
         else:
             raise ValueError("Address must be a string")
         if type(port) is int:
-            self.port = port
+            self.__port = port
         else:
             raise ValueError("Port must be an integer")
         if type(hostname) is str:
-            self.hostname = hostname
+            self.__hostname = hostname
         elif type(hostname) is unicode:
-            self.hostname = hostname.encode('ascii')
+            self.__hostname = hostname.encode('ascii')
         else:
             raise ValueError("Name must be a string")
 
         if type(servicename) is str:
-            self.servicename = servicename
+            self.__servicename = servicename
         elif type(servicename) is unicode:
-            self.servicename = servicename.encode('ascii')
+            self.__servicename = servicename.encode('ascii')
         else:
             raise ValueError("Servicename must be a string")
 
-    def get_send_tuple(self):
-        """
-        Gets the(address,port) send tuple for a clinet
-        
-        @rtype: C{list}
-        @return (C{string} address, C{int} port)
-        """
-        return (self.address, self.port)
+    def _get_send_tuple(self):
+        """ The C{tuple} (address, port) of the client"""
+        return (self.__address, self.__port)
+    send_tuple = property(_get_send_tuple)
 
-    def get_name(self):
-        """
-        Get the servicename of the client
-        
-        @rtype: C{string}
-        @return: Bonjour servicename of the client (unique in a network)
-        """
-        return self.servicename
+    def _get_address(self):
+        """ The resolved IP address of the client"""
+        return self.__address
+    address = property(_get_address)
+
+    def _get_hostname(self):
+        """ The resolved hostname of the client"""
+        return self.__hostname
+    hostname = property(_get_hostname)
+
+    def _get_servicename(self):
+        """ The Bonjour service name of the client"""
+        return self.__servicename
+    servicename = property(_get_servicename)
+
+    def _get_port(self):
+        """ The receiving port of the client"""
+        return self.__port
+    port = property(_get_port)
 
 
 class RosOscReceiver(dispatch.Receiver):
@@ -173,6 +180,14 @@ class OscInterface(object):
 
         # Add OSC callbacks
         self._osc_receiver.fallback = self.fallback
+
+    def _get_clients(self):
+        """
+        Dictionary of clients discovered by Bonjour
+        """
+        with self._clients_lock:
+            return copy.copy(self._clients)
+    clients = self.property(_get_clients)
 
     def bonjour_client_callback(self, client_list):
         """

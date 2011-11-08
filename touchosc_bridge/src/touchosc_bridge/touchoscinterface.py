@@ -43,9 +43,9 @@ class TouchOscClient(oscnode.OscClient):
         self.__activeTabpage = None
         self.__clientType = None
 
-        if servicename.lower().find("[iphone]") != -1:
+        if self.servicename.lower().find("[iphone]") != -1:
             self.__clientType = "ipod"
-        elif servicename.lower().find("[ipad]") != -1:
+        elif self.servicename.lower().find("[ipad]") != -1:
             self.__clientType = "ipad"
 
     @apply
@@ -58,7 +58,7 @@ class TouchOscClient(oscnode.OscClient):
         return property(**locals())
 
     @apply
-    def activeTabpage():
+    def active_tabpage():
         doc = """Current open tabpage on client"""
         def fget(self):
             return self.__activeTabpage
@@ -69,7 +69,7 @@ class TouchOscClient(oscnode.OscClient):
         return property(**locals())
 
     @apply
-    def clientType():
+    def client_type():
         doc = """Type of client (ipod/ipad)"""
         def fget(self):
             return self.__clientType
