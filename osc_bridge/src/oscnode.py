@@ -12,7 +12,7 @@ from txosc import async
 import threading
 
 class OscClient(object):
-    def __init__(self, address, port, name):
+    def __init__(self, servicename, hostname, address, port):
         if type(address) is str:
             self.address = address
         else:
@@ -21,12 +21,19 @@ class OscClient(object):
             self.port = port
         else:
             raise ValueError("Port must be an integer")
-        if type(name) is str:
-            self.name = name
-        elif type(name) is unicode:
-            self.name = name.encode('ascii')
+        if type(hostname) is str:
+            self.hostname = hostname
+        elif type(hostname) is unicode:
+            self.hostname = hostname.encode('ascii')
         else:
             raise ValueError("Name must be a string")
+        
+        if type(servicename) is str:
+            self.servicename = servicename
+        elif type(servicename) is unicode:
+            self.servicename = servicename.encode('ascii')
+        else:
+            raise ValueError("Servicename must be a string")
         
     def getSendTuple(self):
         return (self.address, self.port)
@@ -191,15 +198,17 @@ class OSCNode(object):
         else:
             with self.clientsLock:
                 new = set()
-                for clientName, clientAddress in clientList.iteritems():
-                    new.add(clientAddress["ip"])
-                    if not self.clients.has_key(clientAddress["ip"]):
-                        self.clients[clientAddress["ip"]] = OscClient(clientAddress["ip"],
-                                                                      clientAddress["port"],
-                                                                      clientName)
+                for serviceName, serviceDict in clientList.iteritems():
+                    new.add(serviceDict["ip"])
+                    if not self.clients.has_key(serviceDict["ip"]):
+                        self.clients[serviceDict["ip"]] = OscClient(serviceName,
+                                                                      serviceDict["hostname"],
+                                                                      serviceDict["ip"],
+                                                                      serviceDict["port"])
                 old = set(self.clients.keys())
                 for removed in (old-new):
                     del self.clients[removed]
+
 
     def fallback(self, addressList, valueList, clientAddress):
         """

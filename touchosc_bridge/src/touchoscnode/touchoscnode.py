@@ -36,20 +36,16 @@ def build_path(node, sep):
         return ''
 
 class TouchOscClient(oscnode.OscClient):
-    def __init__(self, address, port, name):
-        super(TouchOscClient, self).__init__(address, port, name)
+    def __init__(self, servicename, hostname, address, port):
+        super(TouchOscClient, self).__init__(servicename, hostname, address, port)
         self.__tabpages = set()
         self.__activeTabpage = None
         self.__clientType = None
         
-        if name.lower().find("ipad") != -1:
+        if servicename.lower().find("[iphone]") != -1:
+            self.__clientType = "ipod"
+        elif servicename.lower().find("[ipad]") != -1:
             self.__clientType = "ipad"
-        elif name.lower().find("iphone") != -1:
-            self.__clientType = "ipod"
-        elif name.lower().find("ipod") != -1:
-            self.__clientType = "ipod"
-        
-        self.name = self.name.replace("-"," ")
             
     @apply
     def tabpages():
