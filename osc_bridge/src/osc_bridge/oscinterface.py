@@ -1,8 +1,10 @@
 """
-oscinterface
-
 Contains classes and helper functions for interfacing between ROS and OSC
 """
+
+__package__ = 'osc_bridge'
+__author__ = 'Michael Carroll <carroll.michael@gmail.com>'
+
 import roslib
 roslib.load_manifest('osc_bridge')
 import rospy
@@ -27,8 +29,8 @@ class OscClient(object):
         """
         Construct for OscClient object
         
-        @type serviceName: C{string} or C{unicode}
-        @param serviceName: Bonjour service name of the client
+        @type servicename: C{string} or C{unicode}
+        @param servicename: Bonjour service name of the client
         @type hostname: C{string} or C{unicode}
         @param hostname: Resolved hostname of the client
         @type address: C{string}
@@ -37,51 +39,66 @@ class OscClient(object):
         @param port: Port that the OSCClient receives on.
         """
         if type(address) is str:
-            self.__address = address
+            self._address = address
         else:
             raise ValueError("Address must be a string")
         if type(port) is int:
-            self.__port = port
+            self._port = port
         else:
             raise ValueError("Port must be an integer")
         if type(hostname) is str:
-            self.__hostname = hostname
+            self._hostname = hostname
         elif type(hostname) is unicode:
-            self.__hostname = hostname.encode('ascii')
+            self._hostname = hostname.encode('ascii')
         else:
             raise ValueError("Name must be a string")
 
         if type(servicename) is str:
-            self.__servicename = servicename
+            self._servicename = servicename
         elif type(servicename) is unicode:
-            self.__servicename = servicename.encode('ascii')
+            self._servicename = servicename.encode('ascii')
         else:
             raise ValueError("Servicename must be a string")
 
-    def _get_send_tuple(self):
-        """ The C{tuple} (address, port) of the client"""
-        return (self.__address, self.__port)
-    send_tuple = property(_get_send_tuple)
+    @property
+    def send_tuple(self):
+        """
+        The (address, port) of the client
+        @type: C{tuple}
+        """
+        return (self._address, self._port)
 
-    def _get_address(self):
-        """ The resolved IP address of the client"""
-        return self.__address
-    address = property(_get_address)
+    @property
+    def address(self):
+        """
+        The resolved IP address of the client
+        @type: C{string}
+        """
+        return self._address
 
-    def _get_hostname(self):
-        """ The resolved hostname of the client"""
-        return self.__hostname
-    hostname = property(_get_hostname)
+    @property
+    def hostname(self):
+        """
+        The resolved hostname of the client
+        @type: C{string}
+        """
+        return self._hostname
 
-    def _get_servicename(self):
-        """ The Bonjour service name of the client"""
-        return self.__servicename
-    servicename = property(_get_servicename)
+    @property
+    def servicename(self):
+        """
+        The Bonjour service name of the client
+        @type: C{string}
+        """
+        return self._servicename
 
-    def _get_port(self):
-        """ The receiving port of the client"""
-        return self.__port
-    port = property(_get_port)
+    @property
+    def port(self):
+        """
+        The receiving port on the client
+        @type: C{int}
+        """
+        return self._port
 
 
 class RosOscReceiver(dispatch.Receiver):
@@ -123,7 +140,7 @@ class OscInterface(object):
     This class handles the most basic interaction between ROS and the OSC 
     interface.
     
-    @ivar bonjourServer: Bonjour registration and browse server
+    @ivar _bonjour_server: Bonjour registration and browse server
     @ivar _osc_sender: OSC Protocol send interface
     @ivar _osc_receiver: OSC Protocol receiver interface
     """
@@ -132,8 +149,7 @@ class OscInterface(object):
         Initialize OSCNode.
         
         @type osc_name: C{str}
-        @param osc_name: Name of the instantiated ROS node. Namespace for all 
-        publishers and subscribers.
+        @param osc_name: Name of the Bonjour service to register.
         @type osc_port: C{int}
         @param osc_port: Port that the OSC server will listen on.
         @type regtype: C{str}
@@ -155,15 +171,15 @@ class OscInterface(object):
             rospy.loginfo("Logging all unhandled messages to rospy.loginfo")
 
         # Bonjour Server
-        self.bonjour_server = Bonjour(self.osc_name, self.osc_port,
-                                      self.osc_regtype,
-                                      debug=rospy.logdebug,
-                                      info=rospy.logdebug,
-                                      error=rospy.logdebug)
+        self._bonjour_server = Bonjour(self.osc_name, self.osc_port,
+                                       self.osc_regtype,
+                                       debug=rospy.logdebug,
+                                       info=rospy.logdebug,
+                                       error=rospy.logdebug)
 
-        self.bonjour_server.setClientCallback(self.bonjour_client_callback)
+        self._bonjour_server.setClientCallback(self.bonjour_client_callback)
 
-        reactor.callInThread(self.bonjour_server.run, daemon=True)
+        reactor.callInThread(self._bonjour_server.run, daemon=True)
 
         self._clients = {}
         self._clients_lock = threading.Lock()
@@ -181,13 +197,13 @@ class OscInterface(object):
         # Add OSC callbacks
         self._osc_receiver.fallback = self.fallback
 
-    def _get_clients(self):
+    @property
+    def clients(self):
         """
-        Dictionary of clients discovered by Bonjour
+        Clients detected via the Bonjour browse service
         """
         with self._clients_lock:
             return copy.copy(self._clients)
-    clients = self.property(_get_clients)
 
     def bonjour_client_callback(self, client_list):
         """
@@ -224,9 +240,9 @@ class OscInterface(object):
         """
         Fallback handler for otherwise unhandled messages.
         
-        @type addressList: C{list}
-        @type valueList: C{list}
-        @type clientAddress: C{list}
+        @type address_list: C{list}
+        @type value_list: C{list}
+        @type client_address: C{list}
         """
         if self.print_fallback:
             rospy.loginfo(address_list)

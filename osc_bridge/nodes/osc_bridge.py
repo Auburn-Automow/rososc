@@ -6,7 +6,7 @@ import sys
 
 from twisted.internet import reactor
 
-from oscinterface import OscInterface
+from osc_bridge.oscinterface import OscInterface
 
 if __name__ == "__main__":
     def start():
