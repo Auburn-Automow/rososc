@@ -156,15 +156,28 @@ class AbstractTabpageHandler(object):
         else:
             iter_tabpages = self.tabpage_names
         for tabpage in iter_tabpages:
+            if tabpage not in self.tabpage_names:
+                rospy.logwarn("Tried to add control %s to tabpage %s" %
+                               (name, tabpage))
+                rospy.logwarn("Cannot add callbacks to an unalias tabage")
+                continue
             node = self.osc_node[tabpage]
             node[name] = dispatch.AddressNode(name)
+            # Match /tabpage/control value
             node[name].addCallback("*", control_callback)
             if z_callback is not None:
+                # Match /tabpage/control/z value
                 node[name].addCallback("/z", z_callback)
+                # Match /tabpage/control/2/z value
                 node[name].addCallback("/[0-9]+/z", z_callback)
+                # Match /tabpage/control/2 value
                 node[name].addCallback("/[0-9]+", control_callback)
+                # Match /tabpage/control/2/2 value
                 node[name].addCallback("/[0-9]+/[0-9]+", control_callback)
             else:
+                # Match /tabpage/control/z value
+                # Match /tabpage/control/2 value
                 node[name].addCallback("/*", control_callback)
+                # Match /tabpage/control/2/2 value
                 node[name].addCallback("/*/*", control_callback)
             node[None].addNode(name, node[name])

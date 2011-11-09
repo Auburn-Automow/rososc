@@ -194,7 +194,7 @@ class TouchOscInterface(OscInterface):
             diags = [(k, v) for k, v in walk_node(self._osc_receiver)]
             rospy.logdebug("Registered Callbacks:")
             for (k, v) in diags:
-                rospy.loginfo('{0:<30}{1:<30}'.format(k, v))
+                rospy.logdebug('{0:<30}{1:<30}'.format(k, v))
                 callback_status.values.append(KeyValue(key=k, value=v))
             self._diagnostic_status_callbacks = callback_status
         msg.status.append(self._diagnostic_status_callbacks)

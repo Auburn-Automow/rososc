@@ -26,7 +26,7 @@ class SimpleTabpageHandler(AbstractTabpageHandler):
                               z_callback=self.cb_osc_multifader_z)
 
         self.add_osc_callback('multixy', self.multixy,
-                              tabpages=['2'])
+                              tabpages=['2', '10'])
 
 
     def multixy(self, address_list, value_list, send_address):
