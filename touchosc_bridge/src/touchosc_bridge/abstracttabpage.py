@@ -64,6 +64,7 @@ class AbstractTabpageHandler(object):
         """
         Callback periodically called to update the diagnostics status of the
         tabpage handler.
+        
         @return: A status message for the tabpage handler
         @rtype: L{diagnostic_msgs/DiagnosticStatus}
         """
@@ -124,13 +125,46 @@ class AbstractTabpageHandler(object):
         """
         pass
 
-    def add_osc_callback(self, name, control_callback, z_callback=None):
-        for node in self.osc_node.itervalues():
+    def add_osc_callback(self, name, control_callback,
+                         tabpages=None, z_callback=None):
+        """
+        Convenience function for adding OSC callbacks.  Users are welcome to use
+        the txosc API for adding their own callbacks, but this tends to make
+        it simpler for TouchOSC controls.
+        
+        control_callback and z_callback must have the function signature:
+        
+        C{callback(address_list, value_list, send_address)}
+        
+        @param name: control name (as addressed)
+        @type name: C{string}
+        @param control_callback: callback function to be called upon match.
+        @type control_callback: Function 
+        @keyword tabpages: A tabpage name or list of tabpage names (namespaces)
+        to add this control to.  If not passed, then the callback will default
+        to all tabpage names that are associated with this handler.
+        @type tabpages: C{str} or C{list}
+        @keyword z_callback: callback function to be called upon control name
+        z-state change.  In order for this to work, "Send Z messages" must be
+        enabled on the TouchOSC app.
+        @type z_callback: function
+        """
+        if type(tabpages) is list:
+            iter_tabpages = tabpages
+        elif type(tabpages) is str:
+            iter_tabpages = [tabpages]
+        else:
+            iter_tabpages = self.tabpage_names
+        for tabpage in iter_tabpages:
+            node = self.osc_node[tabpage]
             node[name] = dispatch.AddressNode(name)
             node[name].addCallback("*", control_callback)
-            node[name].addCallback("/*/*", control_callback)
             if z_callback is not None:
                 node[name].addCallback("/z", z_callback)
+                node[name].addCallback("/[0-9]+/z", z_callback)
+                node[name].addCallback("/[0-9]+", control_callback)
+                node[name].addCallback("/[0-9]+/[0-9]+", control_callback)
             else:
                 node[name].addCallback("/*", control_callback)
+                node[name].addCallback("/*/*", control_callback)
             node[None].addNode(name, node[name])

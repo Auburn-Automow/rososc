@@ -11,10 +11,31 @@ class SimpleTabpageHandler(AbstractTabpageHandler):
                                                    handler_name,
                                                    tabpage_names)
 
-        self.add_osc_callback('multitoggle', self.cb_osc_multitoggle,
-                                             self.cb_osc_multitoggle_z)
-
+        # Add a callback for a control XY on all aliased tabpages
         self.add_osc_callback('xy', self.cb_osc_xy)
+
+        # Add a callback for a control multitoggle on all aliased tabpages
+        # This one also includes a separate z state callback
+        self.add_osc_callback('multipush', self.cb_osc_multitoggle,
+                              tabpages=['1'],
+                              z_callback=self.cb_osc_multitoggle_z)
+
+        # Add a callback for a control multifader on tabpage 2.
+        self.add_osc_callback('multifader', self.cb_osc_multifader,
+                              tabpages=['1'],
+                              z_callback=self.cb_osc_multifader_z)
+
+        self.add_osc_callback('multixy', self.multixy,
+                              tabpages=['2'])
+
+
+    def multixy(self, address_list, value_list, send_address):
+        rospy.loginfo("multixy From: %s" % send_address[0])
+        print "/".join(address_list)
+
+    def multixy_z(self, address_list, value_list, send_address):
+        rospy.loginfo("multixy Z From: %s" % send_address[0])
+        print "/".join(address_list)
 
     def cb_tabpage_active(self, client, tabpage):
         rospy.loginfo("Client %s is now on tabpage %s" % (client, tabpage))
@@ -26,19 +47,24 @@ class SimpleTabpageHandler(AbstractTabpageHandler):
         rospy.loginfo("Client %s connected" % client)
 
     def cb_client_disconnected(self, client):
-        rospy.loginfo("Client %s connected" % client)
+        rospy.loginfo("Client %s disconnected" % client)
 
     def cb_osc_multitoggle(self, address_list, value_list, send_address):
         rospy.loginfo("Multitoggle Control From: %s" % send_address[0])
-        rospy.loginfo(address_list)
-        rospy.loginfo(value_list)
+        print "/".join(address_list)
 
     def cb_osc_multitoggle_z(self, address_list, value_list, send_address):
-        rospy.loginfo("Multitoggle_z Control From: %s" % send_address[0])
-        rospy.loginfo(address_list)
-        rospy.loginfo(value_list)
+        rospy.loginfo("Multitoggle Z From: %s" % send_address[0])
+        print "/".join(address_list)
 
     def cb_osc_xy(self, address_list, value_list, send_address):
         rospy.loginfo("XY Control From: %s" % send_address[0])
-        rospy.loginfo(address_list)
-        rospy.loginfo(value_list)
+        print "/".join(address_list)
+
+    def cb_osc_multifader(self, address_list, value_list, send_address):
+        rospy.loginfo("Multifader Control From: %s" % send_address[0])
+        print "/".join(address_list)
+
+    def cb_osc_multifader_z(self, address_list, value_list, send_address):
+        rospy.loginfo("Multifader Z From: %s" % send_address[0])
+

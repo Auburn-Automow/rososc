@@ -169,6 +169,7 @@ class TouchOscInterface(OscInterface):
         self._osc_receiver.addCallback("/*", self.cb_osc_switch_tabpage)
 
         self.tabpage_handlers = {}
+        self.registered_handlers = set()
         rospy.loginfo("Touchosc interface initialized")
 
     def cb_diagnostics_update(self):
@@ -210,7 +211,10 @@ class TouchOscInterface(OscInterface):
         for client in clients.itervalues():
             diagnostic_status_clients.values.append(KeyValue(
                                     key=client.address,
-                                    value=client.servicename))
+                                    value=client.servicename.split("[")[0]))
+            diagnostic_status_clients.values.append(KeyValue(
+                                    key=client.address + " Type",
+                                    value=client.client_type))
             diagnostic_status_clients.values.append(KeyValue(
                                     key=client.address + " Current",
                                     value=client.active_tabpage))
@@ -230,10 +234,15 @@ class TouchOscInterface(OscInterface):
         reactor.callLater(1.0, self.cb_diagnostics_update)
 
     def register_handler(self, handler):
-        osc_nodes = handler.osc_nodes
-        for node_name, node in osc_nodes.iteritems():
-            self._osc_receiver.addNode(node_name, node)
-            self.tabpage_handlers[node_name] = handler
+        if handler.handler_name in self.registered_handlers:
+            raise ValueError("""Attempted to register two handlers 
+                             with the name %s""" % handler.handler_name)
+        else:
+            self.registered_handlers.add(handler)
+            osc_nodes = handler.osc_nodes
+            for tabpage_name, node in osc_nodes.iteritems():
+                self._osc_receiver.addNode(tabpage_name, node)
+                self.tabpage_handlers[tabpage_name] = handler
 
     def cb_ros_switch_tabpage(self, msg):
         if msg._connection_header['callerid'] != self.ros_name:
@@ -309,17 +318,19 @@ class TouchOscInterface(OscInterface):
 
                     # Send callbacks
                     try:
-                        self.tabpage_handlers[new_tabpage].cb_tabpage_active(
-                                                          send_address[0],
-                                                          new_tabpage)
-                    except KeyError:
-                        continue
-                    try:
                         self.tabpage_handlers[old_tabpage].cb_tabpage_closed(
                                                           send_address[0],
                                                           old_tabpage)
                     except KeyError:
-                        continue
+                        pass
+
+                    try:
+                        self.tabpage_handlers[new_tabpage].cb_tabpage_active(
+                                                          send_address[0],
+                                                          new_tabpage)
+                    except KeyError:
+                        pass
+
             # Publish a Tabpage message with the new_tabpage
             msg = Tabpage()
             msg.header.stamp = rospy.Time.now()
@@ -353,6 +364,7 @@ class TouchOscInterface(OscInterface):
         else:
             with self._clients_lock:
                 new = set()
+                old = set(self._clients.keys())
                 for service_name, service_dict in client_list.iteritems():
                     new.add(service_dict["ip"])
                     try:
@@ -369,6 +381,11 @@ class TouchOscInterface(OscInterface):
                                                   exc_traceback, limit=5,
                                                   file=sys.stdout)
 
-                old = set(self._clients.keys())
+                for added in (new - old):
+                    for handler in self.registered_handlers:
+                        handler.cb_client_connected(added)
                 for removed in (old - new):
+                    for handler in self.registered_handlers:
+                        handler.cb_client_disconnected(removed)
                     del self._clients[removed]
+

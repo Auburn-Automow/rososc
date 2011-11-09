@@ -50,14 +50,14 @@ class OscClient(object):
         if type(hostname) is str:
             self._hostname = hostname
         elif type(hostname) is unicode:
-            self._hostname = hostname.encode('ascii')
+            self._hostname = hostname.encode('ascii', 'ignore')
         else:
             raise ValueError("Name must be a string")
 
         if type(servicename) is str:
             self._servicename = servicename
         elif type(servicename) is unicode:
-            self._servicename = servicename.encode('ascii')
+            self._servicename = servicename.encode('ascii', 'ignore')
         else:
             raise ValueError("Servicename must be a string")
 
