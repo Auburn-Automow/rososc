@@ -1,3 +1,10 @@
+"""
+Module for base class of user-created tabpage handlers
+"""
+
+__package__ = 'touchosc_bridge'
+__author__ = 'Michael Carroll <carroll.michael@gmail.com'
+
 import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 
@@ -10,178 +17,120 @@ import copy
 
 class AbstractTabpageHandler(object):
     """
-    Base class for all TabpageHandlers.  In order to start creating your own Tabpage and handler,
-    inherit from this class.
-    
-    How L{TouchOSCNode} interacts with children of AbstractTabpageHandler:
-      1. When the L{TouchOSCNode} starts, it instantiates TabpageHandlers using the constructor
-      2. It then calls setSender to set the three major OSC sending features, which are:
-       - SendToAll - send messages/bundles to all OSC clients found on the network.
-       - SendToClient - send messages/bundles to a single OSC client.
-       - SendToAllOthers - helper function - send messages/bundles to all clients but one.
-       - The TouchOSC Node then adds AbstractTabpageHandler.osc_node to the OSC receiver, activating
-            all specified OSC callbacks for that Tabpage.
-       - Approximately 0.5 seconds after the last Tabpage is added, setControls is called
-            (useful for clearing a tabpage, or setting it to some defaults)
+    Base class for all TabpageHandlers.  In order to start creating your own 
+    Tabpage and handler, inherit from this class.
     """
-    
-    def __init__(self, nodeName, tabpageName, tabpageAlias=[]):
+    def __init__(self, touchosc_interface, handler_name, tabpage_names):
         """
         Initialize a TabpageHandler object.
         
-        @type nodeName: str
-        @param nodeName: Name of ROS node to be used as a prefix for subscribers and publishers
-        @type tabpageName: str
-        @param tabpageName:  Name of the tabpage
-        @param tabpageAlias: List of aliases for the tabpage
+        @type tabpage_names: C{list}
+        @param tabpage_names:  List of tabpages that this handler will handle.
+        @type handler_name: C{str}
+        @param handler_name: Name to be registered with the TouchOscInterface
         """
-        self.nodeName = nodeName
-        self.tabpageName = tabpageName
-        self.alias = tabpageAlias
-        self.names = [self.tabpageName]
-        self.names.extend([alias for alias in self.alias])
-        
-        self.osc_node = {}
-        self.osc_node[self.tabpageName] = {}
-        self.osc_node[self.tabpageName][None] = dispatch.AddressNode(self.tabpageName)
-        for alias in tabpageAlias:
-            self.osc_node[alias] = {}
-            self.osc_node[alias][None] = dispatch.AddressNode(alias)
+        self.ros_name = rospy.get_name()
+        self.handler_name = handler_name
 
-        self.__oscSendToClient = None
-        self.__oscSendToAll = None
-        self.__oscSendToAllOthers = None
-        
+        self.parent = touchosc_interface
+
+        if type(tabpage_names) is str:
+            self.tabpage_names = [tabpage_names]
+        elif type(tabpage_names) is list:
+            self.tabpage_names = tabpage_names
+        else:
+            raise ValueError("type(tabpage_names) is not str or list")
+
+        self.osc_node = {}
+        for name in self.tabpage_names:
+            self.osc_node[name] = {}
+            self.osc_node[name][None] = dispatch.AddressNode(name)
+
         self.ros_publishers = {}
         self.ros_subscribers = {}
-        self.activeClients = {}
-        
-    def getTabpageName(self):
-        return self.tabpageName
-    
-    def getAllTabpageNames(self):
+
+    @property
+    def osc_nodes(self):
         """
-        Return a list of all names for this tabpage, including aliases.
+        A dict of all OSC address nodes associated with this handler.
+        @type: C{dict}
         """
-        return self.names
-    
-    def getNodeName(self):
-        return self.nodeName
-    
-    def getOscNode(self):
-        return self.osc_node[self.tabpageName][None]
-    
-    def getAliasNodes(self):
-        nodes = []
-        for alias in self.alias:
-            nodes.append((alias, self.osc_node[alias][None]))
-        return nodes     
-    
-    def updateDiagnostics(self):
-        tabpageStatus = DiagnosticStatus()
-        tabpageStatus.level = tabpageStatus.OK
-        tabpageStatus.name = self.tabpageName + " Handler"
-        tabpageStatus.hardware_id = self.nodeName
-        tabpageStatus.message = "OK"
-        tabpageStatus.values = []
-        for client, type in self.activeClients.iteritems():
-            tabpageStatus.values.append(KeyValue(key=client, value = type))
-        return tabpageStatus
-    
-    def setSender(self, sendToAll, sendToClient, sendToAllOthers):
+        returnDict = {}
+        for name in self.tabpage_names:
+            returnDict[name] = self.osc_node[name][None]
+        return returnDict
+
+    def cb_diagnostics_update(self):
         """
-        Set sender functions for the tabpage
+        Callback periodically called to update the diagnostics status of the
+        tabpage handler.
+        @return: A status message for the tabpage handler
+        @rtype: L{diagnostic_msgs/DiagnosticStatus}
         """
-        self.__oscSendToClient = sendToClient
-        self.__oscSendToAll = sendToAll
-        self.__oscSendToAllOthers = sendToAllOthers 
-    
-    def sendToClient(self, element, client):
-        e = copy.copy(element)
-        if client in self.activeClients.iterkeys():
-            basename = '/' + self.activeClients[client]
-            if type(e) is osc.Bundle:
-                for m in element.getMessages():
-                    m.address = '/'.join([basename,m.address])
-            if type(e) is osc.Message:
-                e.address = '/'.join([basename,e.address])
-            self.__oscSendToClient(e, client)
-            
-    def sendToAll(self, element):
-        exclude = set()
-        for client in self.activeClients.iterkeys():
-            exclude.add(client)
-            self.sendToClient(element, client)
-        for name in self.names:
-            e = copy.copy(element)
-            basename = '/' + name
-            if type(e) is osc.Bundle:
-                newBundle = osc.Bundle()
-                for m in e.getMessages():
-                    newBundle.add(osc.Message('/'.join([basename,m.address]),
-                                              *m.getValues()))
-                if len(self.activeClients) == 0:
-                    self.__oscSendToAll(newBundle)
-                else:
-                    self.__oscSendToAllOthers(newBundle, exclude)
-            elif type(e) is osc.Message:
-                e.address = '/'.join([basename,e.address])
-                if len(self.activeClients) == 0:
-                    self.__oscSendToAll(e) 
-                else:
-                    self.__oscSendToAllOthers(e,exclude)
-    
-    def sendToActive(self, element):
-        """
-        Send an OSC C{Message} or C{Bundle} to all clients on this tabpage.
-        
-        @type element: C{Message} or C{Bundle} or C{list}
-        @param element: A single message or bundle, or a list of messages to be sent.
-        """
-        for client in self.activeClients:
-            self.sendToClient(element, client)
-                
-    def sendToAllOtherActive(self, element, client):
-        """
-        Send an OSC C{Message} or C{Bundle} to all other clients on this tabpage.
-        
-        @type element: C{Message} or C{Bundle} or C{list}
-        @param element: A single message or bundle, or a list of messages to be sent.
-        @type client: C{tuple}
-        @param client: (host, port) tuple with destination to leave out.
-        """
-        for dest in self.activeClients:
-            if dest != client:
-                self.sendToClient(element, dest) 
-        
-    def initializeTabpage(self):
+        tabpage_status = DiagnosticStatus()
+        tabpage_status.level = tabpage_status.OK
+        tabpage_status.name = " ".join([self.parent.ros_name,
+                                        self.handler_name,
+                                        "Handler"])
+        tabpage_status.hardware_id = self.parent.ros_name
+        tabpage_status.message = "OK"
+        tabpage_status.values = []
+        return tabpage_status
+
+    def initialize_tabpage(self):
         """
         Called immedeately after tabpage is loaded.  
-        
         May be used to set default values of controls.
         """
         pass
+
+    def cb_client_connected(self, client):
+        """
+        Callback when a new client is detected by Bonjour.
         
-    def tabpageActiveCallback(self, client, tabpage):
+        @param client: IP address of the client that connected.
+        @type client: C{str}
+        """
+        pass
+
+    def cb_client_disconnected(self, client):
+        """
+        Callback when a client disconnects, as detected by Bonjour.
+        
+        @param client: IP address of the clien that disconnected.
+        @type client: C{str}
+        """
+        pass
+
+    def cb_tabpage_active(self, client, tabpage):
         """
         Callback when a client switches to this tabpage.
+        
+        @param client: IP address of the client that activated the tabpage.
+        @type client: C{str}
+        @param tabpage: Name of the tabpage opened.
+        @type tabpage: C{str}
         """
-        if client[0] not in self.activeClients:
-            self.activeClients[client[0]] = tabpage
-    
-    def tabpageClosedCallback(self, client, tabpage):
+        pass
+
+    def cb_tabpage_closed(self, client, tabpage):
         """
-        Callback when a client switches to any tabpage that is 
-        not this one.
+        Callback when a client switches away from this tabpage
+        
+        @param client: IP address of the client that closed the tabpage.
+        @type client: C{str}
+        @param tabpage: Name of the tabpage closed.
+        @type tabpage: C{str}
         """
-        if client[0] in self.activeClients:
-            del self.activeClients[client[0]]
-    
-    def addOscCallback(self, name, callback):
+        pass
+
+    def add_osc_callback(self, name, control_callback, z_callback=None):
         for node in self.osc_node.itervalues():
             node[name] = dispatch.AddressNode(name)
-            node[name].addCallback("*", callback)
-            node[name].addCallback("/*", callback)
-            node[name].addCallback("/*/*", callback)
+            node[name].addCallback("*", control_callback)
+            node[name].addCallback("/*/*", control_callback)
+            if z_callback is not None:
+                node[name].addCallback("/z", z_callback)
+            else:
+                node[name].addCallback("/*", control_callback)
             node[None].addNode(name, node[name])
-    

@@ -20,6 +20,7 @@ from txosc import async
 import sys
 import traceback
 import threading
+import copy
 
 class OscClient(object):
     """
@@ -27,7 +28,7 @@ class OscClient(object):
     """
     def __init__(self, servicename, hostname, address, port):
         """
-        Construct for OscClient object
+        Constructor for OscClient object
         
         @type servicename: C{string} or C{unicode}
         @param servicename: Bonjour service name of the client
@@ -146,7 +147,7 @@ class OscInterface(object):
     """
     def __init__(self, osc_name, osc_port, regtype='_osc._udp', **kwargs):
         """
-        Initialize OSCNode.
+        Initialize OscInterface.
         
         @type osc_name: C{str}
         @param osc_name: Name of the Bonjour service to register.

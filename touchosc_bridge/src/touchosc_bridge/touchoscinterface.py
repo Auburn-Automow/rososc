@@ -1,3 +1,10 @@
+"""
+Contains classes and helper functions for interacting between ROS and TouchOSC.
+"""
+
+__package__ = 'touchosc_bridge'
+__author__ = 'Michael Carroll <carroll.michael@gmail.com>'
+
 import roslib
 roslib.load_manifest('touchosc_bridge')
 import rospy
@@ -11,11 +18,21 @@ from txosc import osc
 from txosc import dispatch
 from txosc import async
 
-import oscnode
+from osc_bridge.oscinterface import OscInterface, OscClient
+
 from twisted.internet import reactor
 
+import copy
+
 def walk_node(parent, sep='/'):
-    """Walk a node tree for nodes with callbacks."""
+    """
+    Walk a node tree for nodes with callbacks.
+    
+    @param parent: The parent node to walk through.
+    @type parent: C{osc.AddressNode}
+    @param sep: Separator for path
+    @type sep: C{string}
+    """
     consumer = [parent]
     foo = {}
     sep = '/'
@@ -30,126 +47,196 @@ def walk_node(parent, sep='/'):
                 consumer.append(v)
 
 def build_path(node, sep):
-    """Reconstruct a path by following the parents of each node."""
+    """
+    Reconstruct a path by following the parents of each node.
+    
+    @param node: The address node to reconstruct
+    @type node: C{osc.AddressNode}
+    @param sep: Separator for path
+    @type sep: C{string}
+    """
     if node._parent:
         return build_path(node._parent, sep) + sep + node.getName()
     else:
         return ''
 
-class TouchOscClient(oscnode.OscClient):
+class TouchOscClient(OscClient):
+    """
+    An object to represent a connected TouchOSC Client
+    """
     def __init__(self, servicename, hostname, address, port):
+        """
+        Constructor for TouchOscClient object
+        
+        @type servicename: C{string} or C{unicode}
+        @param servicename: Bonjour service name of the client
+        @type hostname: C{string} or C{unicode}
+        @param hostname: Resolved hostname of the client
+        @type address: C{string}
+        @param address: Resolved IP address of the client
+        @type port: C{int}
+        @param port: Port that the OSCClient receives on.
+        """
         super(TouchOscClient, self).__init__(servicename, hostname, address, port)
-        self.__tabpages = set()
-        self.__activeTabpage = None
-        self.__clientType = None
+        self._tabpages = set()
+        self._activeTabpage = None
+        self._client_type = None
 
         if self.servicename.lower().find("[iphone]") != -1:
-            self.__clientType = "ipod"
+            self._client_type = "ipod"
         elif self.servicename.lower().find("[ipad]") != -1:
-            self.__clientType = "ipad"
+            self._client_type = "ipad"
 
-    @apply
-    def tabpages():
-        doc = """Set of tabpages that have been seen on the client since start"""
-        def fget(self):
-            return self.__tabpages
-        def fset(self, value):
-            self.__tabpages = value
-        return property(**locals())
+    def add_tabpage(self, tabpage):
+        """
+        Add a tabpage to the set of known tabpages on the client
+        
+        @param tabpage: The tabpage name
+        @type tabpage: C{str}
+        """
+        self._tabpages.add(tabpage.strip('/'))
 
-    @apply
-    def active_tabpage():
-        doc = """Current open tabpage on client"""
-        def fget(self):
-            return self.__activeTabpage
-        def fset(self, value):
-            if value not in self.__tabpages:
-                self.__tabpages.add(value)
-            self.__activeTabpage = value
-        return property(**locals())
+    @property
+    def tabpages(self):
+        """
+        Set of tabpages that have been seen on the client since connection
+        @type: C{set}
+        """
+        return self._tabpages
 
-    @apply
-    def client_type():
-        doc = """Type of client (ipod/ipad)"""
-        def fget(self):
-            return self.__clientType
-        def fset(self, value):
-            self.__clientType = value
-        return property(**locals())
+    @property
+    def active_tabpage(self):
+        """
+        Current open tabpage on the client
+        @type: C{string}
+        """
+        return copy.copy(self._activeTabpage)
+
+    @active_tabpage.setter
+    def active_tabpage(self, tabpage):
+        self._activeTabpage = tabpage
+
+    @property
+    def client_type(self):
+        """
+        Type of client ("ipod"/"ipad") for determining screen size.
+        """
+        return self._client_type
 
 
-class TouchOSCNode(oscnode.OSCNode):
-    def __init__(self, oscName='ROS OSC', oscPort=8000, regtype='_osc._udp', **kwargs):
-        super(TouchOSCNode, self).__init__(oscName, oscPort, regtype, **kwargs)
+class TouchOscInterface(OscInterface):
+    """
+    Class containing the OSC sender and receiver as well as ROS Publishers and
+    Subscribers.
+    """
+    def __init__(self, osc_name='ROS OSC', osc_port=8000, **kwargs):
+        """
+        Initialize TouchOscInterface
+        
+        @type osc_name: C{str}
+        @param osc_name: Name of the Bonjour service to register, may be 
+        overridden by ROS parameters in the superclass.
+        @type osc_port: C{str}
+        @param osc_port: Port that the OSC server will listen on, may be 
+        overridden by ROS parameters in the superclass.
+        """
+        super(TouchOscInterface, self).__init__(osc_name, osc_port, **kwargs)
 
         # Handle the accelerometer data from the device
         if rospy.get_param("~publish_accel", True):
-            self._osc_receiver.addCallback("/accxyz", self.accel_cb)
-            self.accel_pub = rospy.Publisher(self.rosName + '/accel', Imu)
+            self._osc_receiver.addCallback("/accxyz", self.cb_osc_accxyz)
+            self.accel_pub = rospy.Publisher(self.ros_name + '/accel', Imu)
 
         # Add an empty message to vibrate compatible clients (iPhones)
         if rospy.get_param("~vibrate", True):
-            self.vibrate_sub = rospy.Subscriber(self.rosName + '/vibrate', Empty,
-                                                self.vibrateCallback)
+            self.vibrate_sub = rospy.Subscriber(self.ros_name + '/vibrate',
+                                                Empty, self.cb_ros_vibrate)
         # Add a diagnostics publisher
         if rospy.get_param("~publish_diag", True):
-            self.diagnostics_pub = rospy.Publisher("/diagnostics", DiagnosticArray)
-            self.__callbackDiagnostic = None
-            reactor.callLater(1.0, self.diagnosticsUpdate)
+            self.diagnostics_pub = rospy.Publisher("/diagnostics",
+                                                   DiagnosticArray)
+            self._diagnostic_status_callbacks = None
+            reactor.callLater(1.0, self.cb_diagnostics_update)
 
         # Add a tabpage listener    
         if rospy.get_param("~tabpage_sub", True):
-            self.tabpage_sub = rospy.Subscriber(self.rosName + '/tabpage', Tabpage,
-                                                self.ros_switch_tabpage_cb)
+            self.tabpage_sub = rospy.Subscriber(self.ros_name + '/tabpage',
+                                                Tabpage,
+                                                self.cb_ros_switch_tabpage)
+        # Add a tabpage publisher
+        self.tabpage_pub = rospy.Publisher(self.ros_name + '/tabpage', Tabpage)
 
-        self.tabpage_pub = rospy.Publisher(self.rosName + '/tabpage', Tabpage)
+        self._osc_receiver.addCallback("/*", self.cb_osc_switch_tabpage)
 
-        self._osc_receiver.addCallback("/*", self.tabPageSwitchCallback)
-        self.tabpages = set()
-        self.tabpageHandlers = {}
+        self.tabpage_handlers = {}
+        rospy.loginfo("Touchosc interface initialized")
 
-    def diagnosticsUpdate(self):
-        diagnosticsMsg = DiagnosticArray()
-        diagnosticsMsg.header.stamp = rospy.Time.now()
-        diagnosticsMsg.status = []
-        if not self.__callbackDiagnostic:
-            c = DiagnosticStatus()
-            c.level = c.OK
-            c.name = " ".join([self.name, "Registered Callbacks"])
-            c.hardware_id = self.name
-            c.message = "OK"
-            c.values = []
+    def cb_diagnostics_update(self):
+        """
+        Callback periodically called to update the diagnostics status of the 
+        TouchOscInterface.
+        """
+        msg = DiagnosticArray()
+        msg.header.stamp = rospy.Time.now()
+        msg.status = []
+
+        # If the callbacks DiagnosticStatus message hasn't been populated,
+        # do that now.
+        if not self._diagnostic_status_callbacks:
+            callback_status = DiagnosticStatus()
+            callback_status.level = callback_status.OK
+            callback_status.name = " ".join([self.ros_name,
+                                             "Registered Callbacks"])
+            callback_status.hardware_id = self.ros_name
+            callback_status.message = "OK"
+            callback_status.values = []
             diags = [(k, v) for k, v in walk_node(self._osc_receiver)]
             rospy.logdebug("Registered Callbacks:")
             for (k, v) in diags:
-                rospy.logdebug('{0:<30}{1:<30}'.format(k, v))
-                c.values.append(KeyValue(key=k, value=v))
-            self.__callbackDiagnostic = c
-        diagnosticsMsg.status.append(self.__callbackDiagnostic)
-        clientStatus = DiagnosticStatus()
-        clientStatus.level = clientStatus.OK
-        clientStatus.name = " ".join([self.name, "Client Status"])
-        clientStatus.hardware_id = self.name
-        clientStatus.message = "OK, Listening on %d" % self.port
-        clientStatus.values = []
-        with self.clientsLock:
-            for client in self.clients.itervalues():
-                clientStatus.values.append(KeyValue(key=client.getName() + " Type",
-                                                    value=client.clientType))
-                clientStatus.values.append(KeyValue(key=client.getName() + " Current",
-                                                    value=client.activeTabpage))
-                clientStatus.values.append(KeyValue(key=client.getName() + " Tabpages",
-                                                    value=", ".join(client.tabpages)))
-            if len(self.clients) == 0:
-                clientStatus.message = "No clients detected"
-        diagnosticsMsg.status.append(clientStatus)
-        for tabpage in self.tabpageHandlers.itervalues():
-            diagnosticsMsg.status.append(tabpage.updateDiagnostics())
-        self.diagnostics_pub.publish(diagnosticsMsg)
-        reactor.callLater(1.0, self.diagnosticsUpdate)
+                rospy.loginfo('{0:<30}{1:<30}'.format(k, v))
+                callback_status.values.append(KeyValue(key=k, value=v))
+            self._diagnostic_status_callbacks = callback_status
+        msg.status.append(self._diagnostic_status_callbacks)
 
-    def ros_switch_tabpage_cb(self, msg):
-        if msg._connection_header['callerid'] != self.rosName:
+        # Populate the clients DiagnosticStatus message
+        diagnostic_status_clients = DiagnosticStatus()
+        diagnostic_status_clients.level = diagnostic_status_clients.OK
+        diagnostic_status_clients.name = " ".join([self.ros_name,
+                                                    "Client Status"])
+        diagnostic_status_clients.hardware_id = self.ros_name
+        diagnostic_status_clients.message = "Listening on %d" % self.osc_port
+        diagnostic_status_clients.values = []
+        clients = self.clients
+        for client in clients.itervalues():
+            diagnostic_status_clients.values.append(KeyValue(
+                                    key=client.address,
+                                    value=client.servicename))
+            diagnostic_status_clients.values.append(KeyValue(
+                                    key=client.address + " Current",
+                                    value=client.active_tabpage))
+            diagnostic_status_clients.values.append(KeyValue(
+                                    key=client.address + " Tabpages",
+                                    value=", ".join(client.tabpages)))
+        if len(self.clients) == 0:
+            diagnostic_status_clients.message = "No clients detected"
+        msg.status.append(diagnostic_status_clients)
+
+        # For each registered tabpage handler, get a DiagnosticStatus message.
+        for tabpage in self.tabpage_handlers.itervalues():
+            msg.status.append(tabpage.cb_diagnostics_update())
+
+        # Publish
+        self.diagnostics_pub.publish(msg)
+        reactor.callLater(1.0, self.cb_diagnostics_update)
+
+    def register_handler(self, handler):
+        osc_nodes = handler.osc_nodes
+        for node_name, node in osc_nodes.iteritems():
+            self._osc_receiver.addNode(node_name, node)
+            self.tabpage_handlers[node_name] = handler
+
+    def cb_ros_switch_tabpage(self, msg):
+        if msg._connection_header['callerid'] != self.ros_name:
             if not msg.tabpage.startswith('/'):
                 msg.tabpage = '/' + msg.tabpage
             if msg.header.frame_id in self.clients:
@@ -157,13 +244,26 @@ class TouchOSCNode(oscnode.OSCNode):
             elif msg.header.frame_id == '':
                 self.sendToAll(osc.Message(msg.tabpage))
 
-    def accel_cb(self, addressList, valueList, sendAddress):
+    def cb_osc_accxyz(self, address_list, value_list, send_address):
+        """
+        Callback for when accel data is received from a device.
+        
+        Populates a sensor_msgs/Imu message, including the ip address of the
+        sending client in the msg.header.frame_id field.
+        
+        @param address_list: A list with the OSC address parts in it.
+        @type address_list: C{list}
+        @param value_list: A list with the OSC value arguments in it.
+        @type value_list: C{list}
+        @param send_address: A tuple with the (ip, port) of the sender.
+        @type send_address: C{tuple}
+        """
         msg = Imu()
-        msg.linear_acceleration.x = valueList[0] * 9.80665
-        msg.linear_acceleration.y = valueList[1] * 9.80665
-        msg.linear_acceleration.z = valueList[2] * 9.80665
+        msg.linear_acceleration.x = value_list[0] * 9.80665
+        msg.linear_acceleration.y = value_list[1] * 9.80665
+        msg.linear_acceleration.z = value_list[2] * 9.80665
 
-        msg.header.frame_id = sendAddress[0]
+        msg.header.frame_id = send_address[0]
         msg.header.stamp = rospy.Time.now()
         # Covariance was calculated from about 20 minutes of static data
         # Conditions:
@@ -183,79 +283,92 @@ class TouchOSCNode(oscnode.OSCNode):
         msg.orientation_covariance = msg.angular_velocity_covariance
         self.accel_pub.publish(msg)
 
-    def addTabpageHandler(self, tabpageHandler, name, *args):
-        self.tabpages.add(name)
-        rospy.loginfo("Adding Tabpage: %s" % name)
-        rospy.loginfo("Tabpage Handler: %s" % tabpageHandler)
-        rospy.loginfo("args: %s", args)
-        self.tabpageHandlers[name] = tabpageHandler(self.rosName, name, *args)
-        self.tabpageHandlers[name].setSender(self.sendToAll,
-                                             self.sendToClient,
-                                             self.sendToAllOthers)
-        self.tabpageHandlers[name].setClients(self.get)
-        tpOscNode = self.tabpageHandlers[name].getOscNode()
-        self._osc_receiver.addNode(name, tpOscNode)
-        for alias, node in self.tabpageHandlers[name].getAliasNodes():
-            rospy.loginfo("\tAdding Alias: %s" % alias)
-            self.tabpageHandlers[alias] = self.tabpageHandlers[name]
-            self._osc_receiver.addNode(alias, node)
+    def cb_osc_switch_tabpage(self, address_list, value_list, send_address):
+        """
+        Callback for when a client switches tabpages.
+        
+        @param address_list: A list with the OSC address parts in it.
+        @type address_list: C{list}
+        @param value_list: A list with the OSC value arguments in it.
+        @type value_list: C{list}
+        @param send_address: A tuple with the (ip, port) of the sender.
+        @type send_address: C{tuple}
+        """
+        # Since this is a wildcard, ignore /ping and /accxyz messages
+        new_tabpage = address_list[0]
+        if new_tabpage != 'ping' and new_tabpage != 'accxyz':
+            clients = self.clients
+            for client, clientObject in clients.iteritems():
+                if client == send_address[0]:
+                    # Check to see if we have that tabpage on record.
+                    if new_tabpage not in clientObject.tabpages:
+                        clientObject.add_tabpage(new_tabpage)
 
-    def getTabpageHandlerByName(self, name):
-        return self.tabpageHandlers[name]
+                    old_tabpage = clientObject.active_tabpage
+                    clientObject.active_tabpage = new_tabpage
 
-    def tabPageSwitchCallback(self, addressList, valueList, sendAddress):
-        tabpage = addressList[0]
-        alias = []
-        if tabpage != 'ping' and tabpage != 'accxyz':
-            # Send an activate notification to approriate handler
-            if self.tabpageHandlers.has_key(tabpage):
-                self.tabpageHandlers[tabpage].tabpageActiveCallback(sendAddress,
-                                                                    tabpage)
-                alias = self.tabpageHandlers[tabpage].getAllTabpageNames()
-                msg = Tabpage()
-                msg.header.stamp = rospy.Time.now()
-                msg.header.frame_id = sendAddress[0]
-                msg.tabpage = str(tabpage)
-                self.tabpage_pub.publish(msg)
+                    # Send callbacks
+                    try:
+                        self.tabpage_handlers[new_tabpage].cb_tabpage_active(
+                                                          send_address[0],
+                                                          new_tabpage)
+                    except KeyError:
+                        continue
+                    try:
+                        self.tabpage_handlers[old_tabpage].cb_tabpage_closed(
+                                                          send_address[0],
+                                                          old_tabpage)
+                    except KeyError:
+                        continue
+            # Publish a Tabpage message with the new_tabpage
+            msg = Tabpage()
+            msg.header.stamp = rospy.Time.now()
+            msg.header.frame_id = send_address[0]
+            msg.tabpage = str(new_tabpage)
+            self.tabpage_pub.publish(msg)
 
-            # Send a closed notification to all other handlers
-            for page, handler in self.tabpageHandlers.iteritems():
-                if page not in alias:
-                    handler.tabpageClosedCallback(sendAddress,
-                                                  tabpage)
-
-            # Maintain active tabpage and total tabpage information        
-            for client, clientObject in self.clients.iteritems():
-                if client == sendAddress[0]:
-                    clientObject.activeTabpage = tabpage
-                    clientObject.tabpages.add(tabpage)
-
-    def vibrateCallback(self, msg):
+    def cb_ros_vibrate(self, msg):
+        """
+        Callback for the ROS /vibrate subscriber.
+        
+        When called, sends a /vibrate message to all clients, causing capable
+        clients (iPhones) to vibrate
+        """
         self.sendToAll(osc.Message("/vibrate"))
 
-    def initializeTabpages(self):
-        for tabpage in self.tabpages:
-            self.tabpageHandlers[tabpage].initializeTabpage()
-
-    def bonjourClientCallback(self, clientList):
+    def bonjour_client_callback(self, client_list):
         """
         Callback when Bonjour client list is updated.
         
-        @type client: C{dict}
-        @param client: A dictionary of clients {name:{ip,port}}
+        Overrides the parent class's bonjour_client_callback to use the
+        TouchOscClient object rather than the OscClient object.
+        
+        Prunes clients that have disconnected as well.
+        
+        @type client_list: C{dict}
+        @param client_list: A dictionary of clients
         """
-        if type(clientList) is not dict:
+        if type(client_list) is not dict:
             raise ValueError("Bonjour Client Callback requires dict type")
         else:
-            with self.clientsLock:
+            with self._clients_lock:
                 new = set()
-                for serviceName, serviceDict in clientList.iteritems():
-                    new.add(serviceDict["ip"])
-                    if not self.clients.has_key(serviceDict["ip"]):
-                        self.clients[serviceDict["ip"]] = TouchOscClient(serviceName,
-                                                                      serviceDict["hostname"],
-                                                                      serviceDict["ip"],
-                                                                      serviceDict["port"])
-                old = set(self.clients.keys())
+                for service_name, service_dict in client_list.iteritems():
+                    new.add(service_dict["ip"])
+                    try:
+                        self._clients[service_dict["ip"]] = TouchOscClient(
+                                                    service_name,
+                                                    service_dict["hostname"],
+                                                    service_dict["ip"],
+                                                    service_dict["port"])
+                    except KeyError:
+                        exc_type, exc_value, exc_traceback = sys.exc_info()
+                        traceback.print_tb(exc_traceback, limit=1,
+                                           file=sys.stdout)
+                        traceback.print_exception(exc_type, exc_value,
+                                                  exc_traceback, limit=5,
+                                                  file=sys.stdout)
+
+                old = set(self._clients.keys())
                 for removed in (old - new):
-                    del self.clients[removed]
+                    del self._clients[removed]
