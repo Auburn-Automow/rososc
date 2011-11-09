@@ -53,6 +53,7 @@ class AbstractTabpageHandler(object):
     def osc_nodes(self):
         """
         A dict of all OSC address nodes associated with this handler.
+        
         @type: C{dict}
         """
         returnDict = {}
@@ -60,13 +61,143 @@ class AbstractTabpageHandler(object):
             returnDict[name] = self.osc_node[name][None]
         return returnDict
 
+    def send(self, element, clients=None, tabpages=None):
+        """
+        Send an OSC message or bundle to a client or list of clients
+        
+        C{send} has several behaviors.  Any combination of the below behaviors
+        may be used in custom tabpage handlers.
+        
+        @param element: OSC message or bundle to send.
+        @type element: C{osc.Message} or C{osc.Bundle}
+        @param clients: Clients to send to.
+        @type clients: C{list}
+        @param tabpages: Tabpages to send to.
+        @type tabpages: C{list}
+        
+        Send to All
+        ===========
+            Sends an  an element (C{osc.Message} or C{osc.Bundle})
+            prepended with all registered tabpage names to all clients found
+            on the network.
+        
+            Example
+            -------
+            For this example, assume:
+              -  Handler was registered with two names "tab1" and "tab2"
+              -  There are two clients "client1" and "client2"
+                 (These will actually be IP addresses, in practice)
+             
+            The following command yields:
+            
+            >>> self.send(osc.Message('fader',0.0))
+            osc.send(osc.Message('/tab1/fader',0.0),client1)
+            osc.send(osc.Message('/tab2/fader',0.0),client1)
+            osc.send(osc.Message('/tab1/fader',0.0),client2)
+            osc.send(osc.Message('/tab2/fader',0.0),client2)
+            
+        Send to a particular client
+        ===========================
+            Sends an element to a specified client (or list of clients).
+            Prepends all registered tabpage names to all the clients in the 
+            list.
+            
+            Example
+            -------
+            For this example, assume:
+              - Handler was registered with two names "tab1" and "tab2"
+              - There are two clients "client1" and "client2"
+                (These will actually be IP addresses, in practice)
+              
+            The following command yields:
+            
+            >>> self.send(osc.Message('fader',0.0),clients=['client1'])
+            osc.send(osc.Message('/tab1/fader',0.0),client1)
+            osc.send(osc.Message('/tab2/fader',0.0),client1)
+            
+        Send to a particular tabpage
+        ============================
+            Sends an element to all clients, but only a specified tabpage (or
+            list of tabpages).
+            
+            Example
+            -------
+            For this example, assume:
+              -  Handler was registered with two names "tab1" and "tab2"
+              -  There are two clients "client1" and "client2"
+                 (These will actually be IP addresses, in practice)
+             
+            The following command yields:
+            
+            >>> self.send(osc.Message('fader',0.0),tabpages=['tab1'])
+            osc.send(osc.Message('/tab1/fader',0.0),client1)
+            osc.send(osc.Message('/tab1/fader',0.0),client2)
+            
+        Send to a particular client and tabpage
+        =======================================
+            Sends an element to a specific client (or a list of clients), 
+            and a specified tabpage (or list of tabpages).
+            
+            Example
+            -------
+            For this example, assume:
+              -  Handler was registered with two names "tab1" and "tab2"
+              -  There are two clients "client1" and "client2"
+                 (These will actually be IP addresses, in practice)
+             
+            The following command yields:
+            
+            >>> self.send(osc.Message('fader',0.0),clients=['client1'],
+            ...                                    tabpages=['tab1'])
+            osc.send(osc.Message('/tab1/fader',0.0),client1)
+        """
+        if type(element) is not osc.Message and type(element) is not osc.Bundle:
+            raise ValueError("element must be a message or bundle")
+
+        reg_clients = self.parent.clients
+
+        if clients:
+            if type(clients) is str:
+                iter_clients = [clients]
+            elif type (clients) is list:
+                iter_clients = clients
+        else:
+            iter_clients = reg_clients.keys()
+
+        if tabpages:
+            if type(tabpages) is str:
+                iter_tabpages = [tabpages]
+            elif type(tabpages) is list:
+                iter_tabpages = tabpages
+        else:
+            iter_tabpages = self.tabpage_names
+
+        for destination in iter_clients:
+            clientBundle = osc.Bundle()
+            for tab in iter_tabpages:
+                elem = copy.copy(element)
+                basename = '/' + tab
+                if type(elem) is osc.Bundle:
+                    for msg in elem.getMessages():
+                        clientBundle.add(osc.Message('/'.join([basename,
+                                                               msg.address]),
+                                                     *msg.getValues()))
+                elif type(elem) is osc.Message:
+                    elem.address = '/'.join([basename, elem.address])
+                    clientBundle.add(elem)
+            try:
+                dest_address = reg_clients[destination].send_tuple
+                self.parent._osc_sender.send(clientBundle, dest_address)
+            except KeyError:
+                continue
+
     def cb_diagnostics_update(self):
         """
         Callback periodically called to update the diagnostics status of the
         tabpage handler.
         
         @return: A status message for the tabpage handler
-        @rtype: L{diagnostic_msgs/DiagnosticStatus}
+        @rtype: C{diagnostic_msgs/DiagnosticStatus}
         """
         tabpage_status = DiagnosticStatus()
         tabpage_status.level = tabpage_status.OK
@@ -98,7 +229,7 @@ class AbstractTabpageHandler(object):
         """
         Callback when a client disconnects, as detected by Bonjour.
         
-        @param client: IP address of the clien that disconnected.
+        @param client: IP address of the client that disconnected.
         @type client: C{str}
         """
         pass
@@ -159,7 +290,7 @@ class AbstractTabpageHandler(object):
             if tabpage not in self.tabpage_names:
                 rospy.logwarn("Tried to add control %s to tabpage %s" %
                                (name, tabpage))
-                rospy.logwarn("Cannot add callbacks to an unalias tabage")
+                rospy.logwarn("Cannot add callbacks to an unaliased tabage")
                 continue
             node = self.osc_node[tabpage]
             node[name] = dispatch.AddressNode(name)

@@ -388,4 +388,3 @@ class TouchOscInterface(OscInterface):
                     for handler in self.registered_handlers:
                         handler.cb_client_disconnected(removed)
                     del self._clients[removed]
-

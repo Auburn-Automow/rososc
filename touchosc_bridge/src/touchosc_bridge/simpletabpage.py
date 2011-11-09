@@ -3,6 +3,8 @@ roslib.load_manifest('touchosc_bridge')
 
 import rospy
 
+from txosc import osc
+
 from touchosc_bridge.abstracttabpage import AbstractTabpageHandler
 
 class SimpleTabpageHandler(AbstractTabpageHandler):
@@ -26,12 +28,18 @@ class SimpleTabpageHandler(AbstractTabpageHandler):
                               z_callback=self.cb_osc_multifader_z)
 
         self.add_osc_callback('multixy', self.multixy,
-                              tabpages=['2', '10'])
+                              tabpages=['2', '10'],
+                              z_callback=self.multixy_z)
 
 
     def multixy(self, address_list, value_list, send_address):
         rospy.loginfo("multixy From: %s" % send_address[0])
         print "/".join(address_list)
+        bundle = osc.Bundle()
+        bundle.add(osc.Message('xy', value_list[0], value_list[1]))
+        self.send(bundle, tabpages=['3', '4'])
+        self.send(osc.Message('xy', value_list[1], value_list[0]),
+                  tabpages=['2'])
 
     def multixy_z(self, address_list, value_list, send_address):
         rospy.loginfo("multixy Z From: %s" % send_address[0])
