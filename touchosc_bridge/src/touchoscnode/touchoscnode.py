@@ -253,7 +253,13 @@ class TouchOSCNode(oscnode.OSCNode):
             with self.clientsLock:
                 new = set()
                 for clientName, clientAddress in clientList.iteritems():
-                    new.add(clientAddress["ip"])
+                    try:
+                        new.add(clientAddress["ip"])
+                    except KeyError:
+                        import logging
+                        print clientAddress
+                        logging.getLogger().info("No key ip", exc_info=1)
+                        continue
                     if not self.clients.has_key(clientAddress["ip"]):
                         self.clients[clientAddress["ip"]] = TouchOscClient(clientAddress["ip"],
                                                                       clientAddress["port"],

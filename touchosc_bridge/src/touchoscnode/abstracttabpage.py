@@ -75,7 +75,7 @@ class AbstractTabpageHandler(object):
         nodes = []
         for alias in self.alias:
             nodes.append((alias, self.osc_node[alias][None]))
-        return nodes     
+        return nodes
     
     def updateDiagnostics(self):
         tabpageStatus = DiagnosticStatus()
@@ -156,19 +156,19 @@ class AbstractTabpageHandler(object):
         
     def initializeTabpage(self):
         """
-        Called immedeately after tabpage is loaded.  
+        Called immedeately after tabpage is loaded.
         
         May be used to set default values of controls.
         """
         pass
-        
+
     def tabpageActiveCallback(self, client, tabpage):
         """
         Callback when a client switches to this tabpage.
         """
         if client[0] not in self.activeClients:
             self.activeClients[client[0]] = tabpage
-    
+
     def tabpageClosedCallback(self, client, tabpage):
         """
         Callback when a client switches to any tabpage that is 
@@ -176,7 +176,7 @@ class AbstractTabpageHandler(object):
         """
         if client[0] in self.activeClients:
             del self.activeClients[client[0]]
-    
+
     def addOscCallback(self, name, callback):
         for node in self.osc_node.itervalues():
             node[name] = dispatch.AddressNode(name)
@@ -184,4 +184,4 @@ class AbstractTabpageHandler(object):
             node[name].addCallback("/*", callback)
             node[name].addCallback("/*/*", callback)
             node[None].addNode(name, node[name])
-    
+

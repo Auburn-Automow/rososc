@@ -211,11 +211,12 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         tabpageName = addressList[0]
         controlName = addressList[1]
         ctDict = self.messageDict[controlName]
-        if addressList[2] is 'z':
-            ctDict['z'] = bool(valueList[0])
-        else:
-            pos = int(addressList[2]) - 1
-            ctDict[None][pos] = valueList[0]  
+        if len(addressList) > 2:
+            if addressList[2] is 'z':
+                ctDict['z'] = bool(valueList[0])
+            else:
+                pos = int(addressList[2]) - 1
+                ctDict[None][pos] = valueList[0]
         msg = touchosc_msgs.msg.MultiFader()
         msg.header.stamp = rospy.Time.now()
         msg.header.frame_id = sendAddress[0]
