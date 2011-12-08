@@ -24,49 +24,50 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         
         for control in self.tabpage.iterchildren():
             control_type = type(control)
+            ros_cb = None
+            osc_cb = None
+            osc_z_cb = None
             if control_type is pytouchosc.controls.Button or \
                 control_type is pytouchosc.controls.Dial:
                 msg_type = touchosc_msgs.msg.ScalableControl
-                ros_cb = self.scalableControl_ros_cb
-                osc_cb = self.scalableControl_osc_cb
+                ros_cb = self.scalable_control_ros_cb
+                osc_cb = self.scalable_control_osc_cb
+                osc_z_cb  = self.scalable_control_z_osc_cb
             elif control_type is pytouchosc.controls.LED:
                 msg_type = touchosc_msgs.msg.ScalableControl
-                ros_cb = self.scalableControl_ros_cb
-                osc_cb = None
+                ros_cb = self.scalable_control_ros_cb
             elif control_type is pytouchosc.controls.Time or \
                 control_type is pytouchosc.controls.TextField:
                 msg_type = touchosc_msgs.msg.TouchOSC_Common
                 ros_cb = self.common_ros_cb
-                osc_cb = None
             elif control_type is pytouchosc.controls.Label:
                 msg_type = touchosc_msgs.msg.Label
                 ros_cb = self.label_ros_cb
-                osc_cb = None
             elif control_type is pytouchosc.controls.Encoder:
                 msg_type = touchosc_msgs.msg.ScalableControl
                 ros_cb = self.common_ros_cb
-                osc_cb = self.scalableControl_osc_cb
+                osc_cb = self.scalable_control_osc_cb
+                osc_z_cb = self.scalable_control_z_osc_cb
             elif control_type is pytouchosc.controls.MultiButton:
                 msg_type = touchosc_msgs.msg.MultiButton
                 ros_cb = self.multibutton_ros_cb
                 osc_cb = self.multibutton_osc_cb
+                osc_z_cb = self.multibutton_z_osc_cb
             elif control_type is pytouchosc.controls.MultiDial:
                 msg_type = touchosc_msgs.msg.MultiFader
                 ros_cb = self.multifader_ros_cb
                 osc_cb = self.multifader_osc_cb
+                osc_z_cb = self.multifader_z_osc_cb
             elif control_type is pytouchosc.controls.XYPad:
                 msg_type = touchosc_msgs.msg.XYPad
                 ros_cb = self.xypad_ros_cb
                 osc_cb = self.xypad_osc_cb
+                osc_z_cb = self.xypad_z_osc_cb
             elif control_type is pytouchosc.controls.MultiXYPad:
                 msg_type = touchosc_msgs.msg.MultiXYPad
                 ros_cb = self.common_ros_cb
                 osc_cb = self.multixypad_osc_cb
-            else:
-                msg_type = None
-                ros_cb = None
-                osc_cb = None
-            
+                osc_z_cb = self.multixypad_z_osc_cb
             if msg_type is not None:
                 address = ros_prefix + control.name
                 self.ros_subscribers[control.name] = rospy.Subscriber(address, 
@@ -75,7 +76,8 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
                 self.ros_publishers[control.name] = rospy.Publisher(address, 
                                                                     msg_type)
                 if osc_cb:
-                    self.add_osc_callback(control.name, osc_cb)    
+                    self.add_osc_callback(control.name, osc_cb, 
+                                          z_callback=osc_z_cb)
     
     def osc_populate_common(self, msg):
         try:
@@ -147,7 +149,7 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         except KeyError:
             pass
     
-    def scalableControl_ros_cb(self, msg):
+    def scalable_control_ros_cb(self, msg):
         try:
             if msg._connection_header['callerid'] != self.ros_name:
                 (control, control_dict, to_send) = self.osc_populate_common(msg)
@@ -334,7 +336,7 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         msg.z = control_dict['z']
         self.ros_publishers[control_name].publish(msg)
     
-    def xypad_osc_cb(self, address_list, value_list, send_address):
+    def xypad_z_osc_cb(self, address_list, value_list, send_address):
         control_name = address_list[1]
         control_dict = self.message_dict[control_name]
         control_dict['z'] = value_list[0]
