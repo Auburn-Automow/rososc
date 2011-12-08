@@ -13,12 +13,22 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
     Child class of AbstractTabpageHandler to create ROS publishers and 
     subscribers for each of the controls in a loaded tabpage.
     """
-    def __init__(self, touchosc_interface, handler_name, tabpage_names):
-        if size(tabpage_names) > 1:
-            raise ValueError("DefaultTabpageHandler does not support aliasing")
+    def __init__(self, touchosc_interface, tabpage):
+        """
+        Initialize DefaultTabpageHandler
+        
+        @type touchosc_interface:
+        @param touchosc_interface:
+        @type handler_name:
+        @param handler_name:
+        @type tabpage: C{pytouchosc.tabpage}
+        @param tabpage: Parsed-XML format of a tabpage to create a default 
+        handler for.
+        """
         super(DefaultTabpageHandler, self).__init__(touchosc_interface,
-                                                    handler_name,
-                                                    tabpage_names)
+                                                    tabpage.name,
+                                                    tabpage.name)
+        self.tabpage = tabpage
         self.message_dict = self.tabpage.getMessages()
         ros_prefix = self.ros_name + '/' + self.tabpage_names[0] + '/'
         
@@ -125,8 +135,8 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
     def ros_populate_common(self, control_name):
         common_msg = touchosc_msgs.msg.CommonProperties()
         control_dict = self.message_dict[control_name]
-        common_msg.tabpage = tabpage_name
-        common_msg.name = controlName
+        common_msg.tabpage = self.tabpage_names[0]
+        common_msg.name = control_name
         common_msg.color = control_dict['color']
         common_msg.x = int(control_dict['position']['x'])
         common_msg.y = int(control_dict['position']['y'])
@@ -205,7 +215,8 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
             pass
     
     def scalable_control_osc_cb(self, address_list, value_list, send_address):
-        control_dict = self.message_dict[address_list[1]]
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
         control_dict[None] = float(value_list[0])
         msg = touchosc_msgs.msg.ScalableControl()
         msg.header.stamp = rospy.Time.now()
