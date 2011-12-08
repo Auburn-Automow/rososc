@@ -9,277 +9,341 @@ import touchosc_msgs.msg
 import rospy
 
 class DefaultTabpageHandler(AbstractTabpageHandler):
-    def __init__(self, nodeName, tabpageName, tabpage):
-        super(DefaultTabpageHandler, self).__init__(nodeName, tabpageName)
-        
-        self.tabpage = tabpage
-        self.messageDict = self.tabpage.getMessages()
-        
-        rosPrefix = self.nodeName + '/' + self.tabpageName + '/'
+    """
+    Child class of AbstractTabpageHandler to create ROS publishers and 
+    subscribers for each of the controls in a loaded tabpage.
+    """
+    def __init__(self, touchosc_interface, handler_name, tabpage_names):
+        if size(tabpage_names) > 1:
+            raise ValueError("DefaultTabpageHandler does not support aliasing")
+        super(DefaultTabpageHandler, self).__init__(touchosc_interface,
+                                                    handler_name,
+                                                    tabpage_names)
+        self.message_dict = self.tabpage.getMessages()
+        ros_prefix = self.ros_name + '/' + self.tabpage_names[0] + '/'
         
         for control in self.tabpage.iterchildren():
-            controlType = type(control)
-            if controlType is pytouchosc.controls.Button or \
-                controlType is pytouchosc.controls.Dial:
-                msgType = touchosc_msgs.msg.ScalableControl
+            control_type = type(control)
+            if control_type is pytouchosc.controls.Button or \
+                control_type is pytouchosc.controls.Dial:
+                msg_type = touchosc_msgs.msg.ScalableControl
                 ros_cb = self.scalableControl_ros_cb
                 osc_cb = self.scalableControl_osc_cb
-            elif controlType is pytouchosc.controls.LED:
-                msgType = touchosc_msgs.msg.ScalableControl
+            elif control_type is pytouchosc.controls.LED:
+                msg_type = touchosc_msgs.msg.ScalableControl
                 ros_cb = self.scalableControl_ros_cb
                 osc_cb = None
-            elif controlType is pytouchosc.controls.Time or \
-                controlType is pytouchosc.controls.TextField:
-                msgType = touchosc_msgs.msg.TouchOSC_Common
+            elif control_type is pytouchosc.controls.Time or \
+                control_type is pytouchosc.controls.TextField:
+                msg_type = touchosc_msgs.msg.TouchOSC_Common
                 ros_cb = self.common_ros_cb
                 osc_cb = None
-            elif controlType is pytouchosc.controls.Label:
-                msgType = touchosc_msgs.msg.Label
+            elif control_type is pytouchosc.controls.Label:
+                msg_type = touchosc_msgs.msg.Label
                 ros_cb = self.label_ros_cb
                 osc_cb = None
-            elif controlType is pytouchosc.controls.Encoder:
-                msgType = touchosc_msgs.msg.ScalableControl
+            elif control_type is pytouchosc.controls.Encoder:
+                msg_type = touchosc_msgs.msg.ScalableControl
                 ros_cb = self.common_ros_cb
                 osc_cb = self.scalableControl_osc_cb
-            elif controlType is pytouchosc.controls.MultiButton:
-                msgType = touchosc_msgs.msg.MultiButton
+            elif control_type is pytouchosc.controls.MultiButton:
+                msg_type = touchosc_msgs.msg.MultiButton
                 ros_cb = self.multibutton_ros_cb
                 osc_cb = self.multibutton_osc_cb
-            elif controlType is pytouchosc.controls.MultiDial:
-                msgType = touchosc_msgs.msg.MultiFader
+            elif control_type is pytouchosc.controls.MultiDial:
+                msg_type = touchosc_msgs.msg.MultiFader
                 ros_cb = self.multifader_ros_cb
                 osc_cb = self.multifader_osc_cb
-            elif controlType is pytouchosc.controls.XYPad:
-                msgType = touchosc_msgs.msg.XYPad
+            elif control_type is pytouchosc.controls.XYPad:
+                msg_type = touchosc_msgs.msg.XYPad
                 ros_cb = self.xypad_ros_cb
                 osc_cb = self.xypad_osc_cb
-            elif controlType is pytouchosc.controls.MultiXYPad:
-                msgType = touchosc_msgs.msg.MultiXYPad
+            elif control_type is pytouchosc.controls.MultiXYPad:
+                msg_type = touchosc_msgs.msg.MultiXYPad
                 ros_cb = self.common_ros_cb
                 osc_cb = self.multixypad_osc_cb
             else:
-                msgType = None
+                msg_type = None
                 ros_cb = None
                 osc_cb = None
             
-            if msgType is not None:
-                self.ros_subscribers[control.name] = rospy.Subscriber(rosPrefix + control.name, msgType,
-                                                                          ros_cb)
-                self.ros_publishers[control.name] = rospy.Publisher(rosPrefix + control.name, msgType)
-                
+            if msg_type is not None:
+                address = ros_prefix + control.name
+                self.ros_subscribers[control.name] = rospy.Subscriber(address, 
+                                                                      msg_type,
+                                                                      ros_cb)
+                self.ros_publishers[control.name] = rospy.Publisher(address, 
+                                                                    msg_type)
                 if osc_cb:
-                    self.addOscCallback(control.name, osc_cb)    
+                    self.add_osc_callback(control.name, osc_cb)    
     
     def osc_populate_common(self, msg):
-        topic = msg._connection_header['topic'].split('/')
-        tabpageName = topic[2]
-        controlName = topic[3]
-        toSend = []
-        ctDict = self.messageDict[controlName]
+        try:
+            topic = msg._connection_header['topic'].split('/')
+            tabpage_name = topic[2]
+            control_name = topic[3]
+        except KeyError:
+            tabpage_name = ""
+            control_name = ""
+            
+        to_send = []
+        control_dict = self.message_dict[control_name]
         if msg.common.color != '':
-            toSend.append(osc.Message('/'.join([controlName,'color']), 
+            to_send.append(osc.Message('/'.join([control_name,'color']), 
                                       msg.common.color))
-            ctDict['color'] = msg.common.color
-        if msg.common.x != 0 and msg.common.x != int(ctDict['position']['x']):
-            toSend.append(osc.Message('/'.join([controlName,'position/x']), 
-                                      msg.common.x))
-            ctDict['position']['x'] = msg.common.x
-        if msg.common.y != 0 and msg.common.y != int(ctDict['position']['y']):
-            toSend.append(osc.Message('/'.join([controlName,'position/y']), 
-                                      msg.common.y))
-            ctDict['position']['y'] = msg.common.y
-        if msg.common.width != 0 and msg.common.width != int(ctDict['size']['w']):
-            toSend.append(osc.Message('/'.join([controlName,'size/w']), 
-                                      msg.common.width))
-            ctDict['size']['w'] = msg.common.width
-        if msg.common.height != 0 and msg.common.height != int(ctDict['size']['h']):
-            toSend.append(osc.Message('/'.join([controlName,'size/h']), 
-                                      msg.common.height))
-            ctDict['size']['h'] = msg.common.height
+            control_dict['color'] = msg.common.color
+        if (msg.common.x != 0 
+            and msg.common.x != int(control_dict['position']['x'])):
+                to_send.append(osc.Message('/'.join([control_name,'position/x']), 
+                                          msg.common.x))
+                control_dict['position']['x'] = msg.common.x
+        if (msg.common.y != 0 
+            and msg.common.y != int(control_dict['position']['y'])):
+                to_send.append(osc.Message('/'.join([control_name,'position/y']), 
+                                          msg.common.y))
+                control_dict['position']['y'] = msg.common.y
+        if (msg.common.width != 0 
+            and msg.common.width != int(control_dict['size']['w'])):
+                to_send.append(osc.Message('/'.join([control_name,'size/w']), 
+                                          msg.common.width))
+                control_dict['size']['w'] = msg.common.width
+        if (msg.common.height != 0 
+            and msg.common.height != int(control_dict['size']['h'])):
+                to_send.append(osc.Message('/'.join([control_name,'size/h']), 
+                                          msg.common.height))
+                control_dict['size']['h'] = msg.common.height
         if msg.common.visible != '':
             send = 0 if msg.common.visible.lower() == 'false' else 1
-            if bool(send) != bool(ctDict['visibility']):
-                toSend.append(osc.Message('/'.join([controlName,'visible']),
+            if bool(send) != bool(control_dict['visibility']):
+                to_send.append(osc.Message('/'.join([control_name,'visible']),
                                           send))
-                ctDict['visibility'] = bool(send)
-        return (tabpageName, controlName, ctDict, toSend)
+                control_dict['visibility'] = bool(send)
+        return (control_name, control_dict, to_send)
+    
+    def ros_populate_common(self, control_name):
+        common_msg = touchosc_msgs.msg.CommonProperties()
+        control_dict = self.message_dict[control_name]
+        common_msg.tabpage = tabpage_name
+        common_msg.name = controlName
+        common_msg.color = control_dict['color']
+        common_msg.x = int(control_dict['position']['x'])
+        common_msg.y = int(control_dict['position']['y'])
+        common_msg.width = int(control_dict['size']['w'])
+        common_msg.height = int(control_dict['size']['h'])
+        common_msg.visible = str(control_dict['visibility'])
+        return common_msg
+    
+    def send_osc_message(self, frame_id, to_send):
+        if frame_id != '':
+            self.send(osc.Bundle(to_send), clients=msg.header.frame_id)
+        else:
+            self.send(osc.Bundle(to_send))
     
     def common_ros_cb(self, msg):
-        if msg._connection_header['callerid'] != self.nodeName:
-            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
-            if msg.header.frame_id != '':
-                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
-            else:
-                self.sendToAll(osc.Bundle(toSend))
+        try:
+            if msg._connection_header['callerid'] != self.ros_name:
+                (_, _, to_send) = self.osc_populate_common(msg)
+                self.send_osc_message(msg.header.frame_id, to_send)
+        except KeyError:
+            pass
     
     def scalableControl_ros_cb(self, msg):
-        if msg._connection_header['callerid'] != self.nodeName:
-            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
-            if msg.value != ctDict[None]:
-                ctDict[None] = msg.value
-                toSend.append(osc.Message(control, msg.value))
-            if msg.header.frame_id != '':
-                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
-            else:
-                self.sendToAll(osc.Bundle(toSend))
+        try:
+            if msg._connection_header['callerid'] != self.ros_name:
+                (control, control_dict, to_send) = self.osc_populate_common(msg)
+                if msg.value != control_dict[None]:
+                    control_dict[None] = msg.value
+                    to_send.append(osc.Message(control, msg.value))
+                self.send_osc_message(msg.header.frame_id, to_send)
+        except KeyError:
+            pass
 
     def label_ros_cb(self, msg):
-        if msg._connection_header['callerid'] != self.nodeName:
-            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
-            if msg.value != ctDict['text']:
-                ctDict['text'] = msg.value
-                toSend.append(osc.Message(control, msg.value))
-            if msg.header.frame_id != '':
-                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
-            else:
-                self.sendToAll(osc.Bundle(toSend))
+        try:
+            if msg._connection_header['callerid'] != self.ros_name:
+                (control, control_dict, to_send) = self.osc_populate_common(msg)
+                if msg.value != control_dict['text']:
+                    control_dict['text'] = msg.value
+                    to_send.append(osc.Message(control, msg.value))
+                self.send_osc_message(msg.header.frame_id, to_send)
+        except KeyError:
+            pass
             
     def multibutton_ros_cb(self, msg):
-        if msg._connection_header['callerid'] != self.nodeName:
-            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
-            if list(msg.values) != ctDict[None]:
-                ctDict[None] = list(msg.values)
-                toSend.append(osc.Message(control, *msg.value))
-            if msg.header.frame_id != '':
-                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
-            else:
-                self.sendToAll(osc.Bundle(toSend))
+        try:
+            if msg._connection_header['callerid'] != self.ros_name:
+                (control, control_dict, to_send) = self.osc_populate_common(msg)
+                if list(msg.values) != control_dict[None]:
+                    control_dict[None] = list(msg.values)
+                    to_send.append(osc.Message(control, *control_dict[None]))
+                self.send_osc_message(msg.header.frame_id, to_send)
+        except KeyError:
+            pass
             
     def multifader_ros_cb(self, msg):
-        if msg._connection_header['callerid'] != self.nodeName:
-            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
-            if list(msg.values) != ctDict[None]:
-                ctDict[None] = list(msg.values)
-                toSend.append(osc.Message(control,*ctDict[None]))
-            if msg.header.frame_id != '':
-                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
-            else:
-                self.sendToAll(osc.Bundle(toSend))
+        try:
+            if msg._connection_header['callerid'] != self.nodeName:
+                (control, control_dict, to_send) = self.osc_populate_common(msg)
+                if list(msg.values) != control_dict[None]:
+                    control_dict[None] = list(msg.values)
+                    toSend.append(osc.Message(control,*control_dict[None]))
+                self.send_osc_message(msg.header.frame_id, to_send)
+        except KeyError:
+            pass
             
     def xypad_ros_cb(self, msg):
-        if msg._connection_header['callerid'] != self.nodeName:
-            (tabpage, control, ctDict, toSend) = self.osc_populate_common(msg)
-            if [msg.x, msg.y] != ctDict[None]:
-                ctDict[None] = [msg.x, msg.y]
-                toSend.append(osc.Message(control,*ctDict[None]))
-            if msg.header.frame_id != '':
-                self.sendToClient(osc.Bundle(toSend),msg.header.frame_id)
-            else:
-                self.sendToAll(osc.Bundle(toSend))
+        try:
+            if msg._connection_header['callerid'] != self.nodeName:
+                (control, control_dict, to_send) = self.osc_populate_common(msg)
+                if [msg.x, msg.y] != control_dict[None]:
+                    contol_dict[None] = [msg.x, msg.y]
+                    to_send.append(osc.Message(control,*contol_dict[None]))
+                self.send_osc_message(msg.header.frame_id, to_send)
+        except KeyError:
+            pass
     
-    def scalableControl_osc_cb(self, addressList, valueList, sendAddress):
-        tabpageName = addressList[0]
-        controlName = addressList[1]
-        ctDict = self.messageDict[controlName]
-        
-        if len(addressList) == 3:
-            ctDict['z'] = bool(valueList[0])
-        else:
-            ctDict[None] = float(valueList[0])
-            
+    def scalable_control_osc_cb(self, address_list, value_list, send_address):
+        control_dict = self.message_dict[address_list[1]]
+        control_dict[None] = float(value_list[0])
         msg = touchosc_msgs.msg.ScalableControl()
         msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = sendAddress[0]
-        msg.common = self.populate_common(tabpageName, controlName)
-        msg.range = [ctDict['scalef'], ctDict['scalet']]
-        msg.z = ctDict['z']
-        msg.value = ctDict[None]
-        self.ros_publishers[controlName].publish(msg)
-
-    def multibutton_osc_cb(self, addressList, valueList, sendAddress):        
-        tabpageName = addressList[0]
-        controlName = addressList[1]
-        ctDict = self.messageDict[controlName]
-        
-        if len(addressList) == 3:
-            ctDict['z'] = bool(valueList[0])
-        else:
-            x = int(addressList[2]) - 1
-            y = int(addressList[3]) - 1
-            ctDict[None][y + x*ctDict['dim_y']] = valueList[0]
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.z = control_dict['z']
+        msg.value = control_dict[None]
+        self.ros_publishers[control_name].publish(msg)
+    
+    def scalable_control_z_osc_cb(self, address_list, value_list, send_address):
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
+        control_dict['z'] = bool(value_list[0])
+        msg = touchosc_msgs.msg.ScalableControl()
+        msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.z = control_dict['z']
+        msg.value = control_dict[None]
+        self.ros_publishers[control_name].publish(msg)
+    
+    def multibutton_osc_cb(self, address_list, value_list, send_address):
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
+        x = int(address_list[2]) - 1
+        y = int(address_list[3]) - 1
+        control_dict[None][y + x*control_dict['dim_y']] = value_list[0]
         msg = touchosc_msgs.msg.MultiButton()
         msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = sendAddress[0]
-        msg.common = self.populate_common(tabpageName, controlName)
-        msg.dimension = [ctDict['dim_x'], ctDict['dim_y']]
-        msg.range = [ctDict['scalef'], ctDict['scalet']]
-        msg.z = ctDict['z']
-        msg.values = ctDict[None]
-        self.ros_publishers[controlName].publish(msg)
-    
-    def multifader_osc_cb(self, addressList, valueList, sendAddress):
-        tabpageName = addressList[0]
-        controlName = addressList[1]
-        ctDict = self.messageDict[controlName]
-        if addressList[2] is 'z':
-            ctDict['z'] = bool(valueList[0])
-        else:
-            pos = int(addressList[2]) - 1
-            ctDict[None][pos] = valueList[0]  
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.dimension = [control_dict['dim_x'], control_dict['dim_y']]
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.z = control_dict['z']
+        msg.values = control_dict[None]
+        self.ros_publishers[control_name].publish(msg)
+        
+    def multibutton_z_osc_cb(self, address_list, value_list, send_address):
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
+        control_dict['z'] = bool(value_list[0])
+        msg = touchosc_msgs.msg.MultiButton()
+        msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.dimension = [control_dict['dim_x'], control_dict['dim_y']]
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.z = control_dict['z']
+        msg.values = control_dict[None]
+        self.ros_publishers[control_name].publish(msg)
+
+    def multifader_osc_cb(self, address_list, value_list, send_address):
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
+        pos = int(address_list[2]) - 1
+        control_dict[None][pos] = value_list[0]
         msg = touchosc_msgs.msg.MultiFader()
         msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = sendAddress[0]
-        msg.common = self.populate_common(tabpageName, controlName)
-        msg.dimension = ctDict['number']
-        msg.range = [ctDict['scalef'], ctDict['scalet']]
-        msg.z = ctDict['z']
-        msg.values = ctDict[None]
-        self.ros_publishers[controlName].publish(msg)
-    
-    def multixypad_osc_cb(self, addressList, valueList, sendAddress):
-        tabpageName = addressList[0]
-        controlName = addressList[1]
-        ctDict = self.messageDict[controlName]
-        touchNumber = int(addressList[2])
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.dimension = control_dict['number']
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.z = control_dict['z']
+        msg.values = control_dict[None]
+        self.ros_publishers[control_name].publish(msg)
+
+    def multifader_z_osc_cb(self, address_list, value_list, send_address):
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
+        control_dict['z'] = bool(value_list[0])
+        msg = touchosc_msgs.msg.MultiFader()
+        msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.dimension = control_dict['number']
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.z = control_dict['z']
+        msg.values = control_dict[None]
+        self.ros_publishers[control_name].publish(msg)
         
-        if len(addressList) == 4:
-            ctDict['z'][touchNumber - 1] = bool(valueList[0])
-            if not bool(valueList[0]):
-                ctDict['x'][touchNumber - 1] = 0.0
-                ctDict['y'][touchNumber - 1] = 0.0
-        else:
-            ctDict['x'][touchNumber - 1] = valueList[0]
-            ctDict['y'][touchNumber - 1] = valueList[1]
-            
+    def multixypad_osc_cb(self, address_list, value_list, send_address):
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
+        touch_number = int(address_list[2])
+        control_dict['x'][touch_number - 1] = value_list[0]
+        control_dict['y'][touch_number - 1] = value_list[1]
         msg = touchosc_msgs.msg.MultiXYPad()
         msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = sendAddress[0]
-        msg.common = self.populate_common(tabpageName, controlName)
-        msg.range = [ctDict['scalef'], ctDict['scalet']]
-        msg.z = ctDict['z']        
-        msg.x = ctDict['x']
-        msg.y = ctDict['y']
-        self.ros_publishers[controlName].publish(msg)
-            
-    def xypad_osc_cb(self, addressList, valueList, sendAddress):
-        tabpageName = addressList[0]
-        controlName = addressList[1]
-        ctDict = self.messageDict[controlName]
- 
-        if len(addressList) == 3:
-            ctDict['z'] = bool(valueList[0])
-        else:
-            ctDict[None] = valueList
- 
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.z = control_dict['z']
+        msg.x = control_dict['x']
+        msg.y = control_dict['y']
+        self.ros_publishers[control_name].publish(msg)
+        
+    def multixypad_z_osc_cb(self, address_list, value_list, send_address):
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
+        touch_number = int(address_list[2])
+        control_dict['z'][touch_number - 1] = bool(value_list[0])
+        if not bool(value_list[0]):
+            control_dict['x'][touch_number - 1] = 0.0
+            control_dict['y'][touch_number - 1] = 0.0
+        msg = touchosc_msgs.msg.MultiXYPad()
+        msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.z = control_dict['z']
+        msg.x = control_dict['x']
+        msg.y = control_dict['y']
+        self.ros_publishers[control_name].publish(msg)
+    
+    def xypad_osc_cb(self, address_list, value_list, send_address):
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
+        control_dict[None] = value_list
         msg = touchosc_msgs.msg.XYPad()
         msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = sendAddress[0]
-        msg.common = self.populate_common(tabpageName, controlName)
-        msg.range = [ctDict['scalef'], ctDict['scalet']]
-        msg.x = ctDict[None][0]
-        msg.y = ctDict[None][1]
-        msg.z = ctDict['z']
-        self.ros_publishers[controlName].publish(msg)
-        
-    def populate_common(self, tabpageName, controlName):
-        commonMsg = touchosc_msgs.msg.CommonProperties()
-        ctDict = self.messageDict[controlName]
-        commonMsg.tabpage = tabpageName
-        commonMsg.name = controlName
-        commonMsg.color = ctDict['color']
-        commonMsg.x = int(ctDict['position']['x'])
-        commonMsg.y = int(ctDict['position']['y'])
-        commonMsg.width = int(ctDict['size']['w'])
-        commonMsg.height = int(ctDict['size']['h'])
-        commonMsg.visible = str(ctDict['visibility'])
-        return commonMsg
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.x = control_dict[None][0]
+        msg.y = control_dict[None][1]
+        msg.z = control_dict['z']
+        self.ros_publishers[control_name].publish(msg)
+    
+    def xypad_osc_cb(self, address_list, value_list, send_address):
+        control_name = address_list[1]
+        control_dict = self.message_dict[control_name]
+        control_dict['z'] = value_list[0]
+        msg = touchosc_msgs.msg.XYPad()
+        msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = send_address[0]
+        msg.common = self.ros_populate_common(control_name)
+        msg.range = [control_dict['scalef'], control_dict['scalet']]
+        msg.x = control_dict[None][0]
+        msg.y = control_dict[None][1]
+        msg.z = control_dict['z']
+        self.ros_publishers[control_name].publish(msg)
