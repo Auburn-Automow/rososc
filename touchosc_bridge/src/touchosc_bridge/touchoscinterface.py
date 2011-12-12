@@ -207,6 +207,8 @@ class TouchOscInterface(OscInterface):
         diagnostic_status_clients.hardware_id = self.ros_name
         diagnostic_status_clients.message = "Listening on %d" % self.osc_port
         diagnostic_status_clients.values = []
+        #TODO: The clients property accessor is not thread-safe, as far as I can
+        #tell, but using a lock tends to make bonjour hang.
         clients = self.clients
         for client in clients.itervalues():
             diagnostic_status_clients.values.append(KeyValue(
@@ -234,6 +236,13 @@ class TouchOscInterface(OscInterface):
         reactor.callLater(1.0, self.cb_diagnostics_update)
 
     def register_handler(self, handler):
+        """
+        Used to register a tabpage handler with the TouchOSC interface.
+        
+        @param handler: Initialized tabpage handler that will be connected 
+        to the Touchosc interface
+        @type handler: Class that implements C{AbstractTabpageHandler}
+        """
         if handler.handler_name in self.registered_handlers:
             raise ValueError("""Attempted to register two handlers 
                              with the name %s""" % handler.handler_name)
@@ -346,6 +355,14 @@ class TouchOscInterface(OscInterface):
         clients (iPhones) to vibrate
         """
         self.sendToAll(osc.Message("/vibrate"))
+
+    def initialize_tabpages(self):
+        """
+        Called approximately one second after the reactor starts running,
+        may be used to set tabpages to some default state
+        """
+        for handler in self.registered_handlers:
+            handler.initialize_tabpage()
 
     def bonjour_client_callback(self, client_list):
         """

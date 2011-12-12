@@ -203,8 +203,7 @@ class OscInterface(object):
         """
         Clients detected via the Bonjour browse service
         """
-        with self._clients_lock:
-            return copy.copy(self._clients)
+        return copy.copy(self._clients)
 
     def bonjour_client_callback(self, client_list):
         """
