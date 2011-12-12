@@ -187,6 +187,8 @@ class AbstractTabpageHandler(object):
                     clientBundle.add(elem)
             try:
                 dest_address = reg_clients[destination].send_tuple
+                for msg in clientBundle.getMessages():
+                    print str(dest_address) + " " + str(msg)
                 self.parent._osc_sender.send(clientBundle, dest_address)
             except KeyError:
                 continue

@@ -4,308 +4,256 @@ import rospy
 from txosc import osc
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
-from touchoscnode import AbstractTabpageHandler
+from touchosc_bridge.abstracttabpage import AbstractTabpageHandler
 
-class DiagMessage(object):
-    COLORS = {0: "green", 1: "yellow", 2: "red", 3: "gray"}
+class DiagnosticsClient(object):
+    def __init__(self, client_name, client_type, client_topic):
+        self.name = client_name
+        self.type = client_type
+        self.topic = client_topic
+
+        self.diag_db = None
+
+        self.active = False
+        self.paused = False
+        self.diagnostics_offset = 0
+        self.keyvalue_offset = 0
+
+    def set_diagnostics_offset(self, offset):
+        self.diagnostics_offset = offset
+
+    def set_keyvalue_offset(self, offset):
+        self.keyvalue_offset = offset
+
+    def update_diagnostics_display(self, display_list, system_status=None,
+                                   fader=False):
+        it = 1
+        to_display = []
+        length = len(display_list)
+        for (name, color) in display_list[self.diagnostics_offset:]:
+            to_display.append(osc.Message("dled%i/color" % it, color))
+            to_display.append(osc.Message("dled%i" % it, 1.0))
+            to_display.append(osc.Message("dlabel%i" % it, name))
+            it += 1
+            if it > self.diag_list_length: break;
+        while it <= self.diag_list_length:
+            to_display.append(osc.Message("dled%i/color" % it, 'gray'))
+            to_display.append(osc.Message("dled%i" % it, 0.0))
+            to_display.append(osc.Message("dlabel%i" % it, ''))
+            it += 1
+        if system_status:
+            to_display.append(osc.Message("statusled/color", system_status))
+            to_display.append(osc.Message("statusled", 1.0))
+        if fader:
+            if length <= self.diag_list_length:
+                value = 1.0
+            else:
+                value = self.diagnostics_offset / float(length - self.diag_list_length)
+            to_display.append(osc.Message("dfader", value))
+        return to_display
+
+    def update_keyvalue_display(self, keyvalue_list):
+        pass
+
+
+    @property
+    def type(self):
+        """
+        Type of the client (ipod/ipad)
+        @type: C{string}
+        """
+        return self.client_type
+
+    @type.setter
+    def type(self, type):
+        if type.lower() == "ipad":
+            self.diag_list_length = 16
+            self.detail_list_length = 8
+            self.client_type = "ipad"
+        elif type.lower() == "ipod":
+            self.diag_list_length = 10
+            self.detail_list_length = 6
+            self.client_type = "ipod"
+        else:
+            raise ValueError("Client type %s is not supported" % type)
+
+    @property
+    def topic(self):
+        """
+        Topic that the client is subscribed to
+        @type: C{string}
+        """
+        return self.client_topic
+
+    @topic.setter
+    def topic(self, topic):
+        if topic.lower() == "/diagnostics":
+            self.client_topic = "/diagnostics"
+        elif topic.lower() == "/diagnostics_agg":
+            self.client_topic = "/diagnostics_agg"
+        else:
+            raise ValueError("Topic %s is not supported" % topic)
+
+class DiagnosticsMessage(object):
+    COLORS = {0: "green", 1: "yellow", 2: "red", 3:"gray"}
     def __init__(self, name):
         self.name = name
-        self.kvDict = {}
+        self.kv_dict = {}
         self.stamp = None
         self.status = 3
-        self.kvDisplay = []
-    
+        self.kv_display = []
+
     def update(self, stamp, msg):
         self.stamp = stamp
         self.status = msg.level
-        self.msg = msg 
+        self.msg = msg
         for value in msg.values:
-            self.kvDict[value.key] = value.value
-        self.kvDisplay = sorted(self.kvDict.keys())
-       
-    def getColor(self):
+            self.kv_dict[value.key] = value.value
+        self.kv_display = sorted(self.kv_dict.keys())
+
+    def get_color(self):
         return self.COLORS[self.status]
-    
-    def getName(self):
-        return self.name
-    
-    def getStatus(self):
-        return self.status
-    
-    def getLength(self):
-        return len(self.kvDisplay)
-    
-            
-class DiagArray(object):
-    COLORS = {0: "green", 1: "yellow", 2: "red", 3: "gray"}
-    def __init__(self, subTopic):
-        self.diagDict = {}
-        self.diagDisplay = []
-        self.systemStatus = DiagnosticStatus.OK
-        self.subTopic = subTopic # Should be "/diagnostics" or "/diagnostics_agg"
-        self.expandName = None
-        
-    def getLength(self):
-        return len(self.diagDisplay)
-    
-    def addMessage(self, msg):
+
+    def get_length(self):
+        return len(self.kv_dict)
+
+    def get_display_list(self):
+        disp_list = []
+        for key, value in self.kv_dict.iteritems():
+            disp_list.append((key, value))
+        return disp_list
+
+
+class DiagnosticsData(object):
+    COLORS = {0: "green", 1: "yellow", 2: "red", 3:"gray"}
+    def __init__(self, topic):
+        self.diagnostics_data = {}
+        self.diagnostics_display = []
+        self.system_status = DiagnosticStatus.OK
+        self.topic = topic
+
+    def add_message(self, msg):
         if msg is not None:
             for message in msg.status:
-                # If the message has not been seen, add it.
-                if not self.diagDict.has_key(message.name):
-                    self.diagDict[message.name] = DiagMessage(message.name)
-                self.diagDict[message.name].update(msg.header.stamp, message)
+                if not self.diagnostics_data.has_key(message.name):
+                    self.diagnostics_data[message.name] = DiagnosticsMessage(message.name)
+                self.diagnostics_data[message.name].update(msg.header.stamp, message)
                 if message.level != 3:
-                    self.systemStatus = max(self.systemStatus,message.level)   
-            self.diagDisplay = sorted(self.diagDict.keys())
-        
-    def getSystemStatus(self):
-        return self.COLORS[self.systemStatus]
-    
-    def getDisplayList(self):
-        displayList = sorted(self.diagDict.keys())
-        messages = [self.diagDict[x] for x in displayList]
-        return [(msg.getName(),msg.getColor()) for msg in messages]
+                    self.system_status = max(self.system_status, message.level)
+            self.diagnostics_display = sorted(self.diagnostics_data.keys())
 
+    def get_length(self):
+        return len(self.diagnostics_data)
 
-class DiagnosticsClient(object):
-    def __init__(self, client, clientType, clientTopic):
-        """
-        Constructor
-        
-        @type client: C{list}
-        @param client: (address, port) tuple for the client
-        @type clientType: C{str}
-        @param clientType: Type of the client "ipod" or "ipad"
-        @type clientTopic: C{str}
-        @param clientTopic: Topic of the client "/diagnostics" or "/diagnostics_agg"
-        """
-        self.client = client
-        self.clientType = clientType
-        
-        self.diagOffset = 0
-        self.detailOffset = 0
-        
-        if self.clientType.lower() == "ipad":
-            self.lengthDiagnosticList = 16
-            self.lengthDetailDiagnosticList = 8
-        elif self.clientType.lower() == "ipod":
-            self.lengthDiagnosticList = 10
-            self.lengthDetailDiagnosticList = 6
-        else:
-            raise ValueError("Client type %s is not supported"%self.clientType)
-        self.clientTopic = clientTopic
-        
-        self.msgList = None
-        self.paused = False
-    
-    def setTopic(self, newTopic):
-        self.clientTopic = newTopic
-        if self.clientTopic == '/diagnostics':
-            self.msgList = self.diagArray
-        else:
-            self.msgList = self.diagAggArray
-    
-    def getMaxMinDiagOffset(self):
-        maxOffset = self.msgList.getLength() - self.lengthDiagnosticList
-        maxOffset = 0 if maxOffset < 0 else maxOffset
-        return (maxOffset, 0)
-    
-    def getMaxMinDetailOffset(self):
-        pass
-        
-    def setDiagOffset(self, offset):
-        self.diagOffset = offset
-    
-    def getTopic(self):
-        return self.clientTopic
-    
-    def setMessageDb(self, diagArray, diagAggArray):
-        self.diagArray = diagArray
-        self.diagAggArray = diagAggArray
-        self.msgList = diagArray
-    
-    def updateDisplay(self, nofader = False):
-        it = 1
-        toDisplay = []
-        displayList = self.msgList.getDisplayList()
-        for (name, color) in displayList[self.diagOffset:]:
-            toDisplay.append(osc.Message("dled%i/color"%it, color))
-            toDisplay.append(osc.Message("dled%i"%it,1.0))
-            toDisplay.append(osc.Message("dlabel%i"%it,name))
-            it+=1
-            if it > self.lengthDiagnosticList: break;
-        while it <= self.lengthDiagnosticList:
-            toDisplay.append(osc.Message("dled%i/color"%it, 'gray'))
-            toDisplay.append(osc.Message("dled%i"%it,0.0))
-            toDisplay.append(osc.Message("dlabel%i"%it,''))
-            it +=1
-        toDisplay.append(osc.Message("statusled/color", self.msgList.getSystemStatus()))
-        toDisplay.append(osc.Message("statusled",1.0))
-        if not nofader:
-            if len(displayList) <= self.lengthDiagnosticList:
-                value = 1.0
-            else:
-                value = self.diagOffset/float(len(displayList) - self.lengthDiagnosticList)
-            toDisplay.append(osc.Message("dfader",value))
-        return toDisplay
+    def get_system_status(self):
+        return self.COLORS[self.system_status]
 
-    def clearDisplay(self):
-        it = 1
-        toDisplay = []
-        while it <= self.lengthDiagnosticList:
-            toDisplay.append(osc.Message("dled%i/color"%it, 'gray'))
-            toDisplay.append(osc.Message("dled%i"%it,0.0))
-            toDisplay.append(osc.Message("dlabel%i"%it,''))
-            it+=1
-        toDisplay.append(osc.Message("/diagnostics/dfader",0.0))
-        toDisplay.append(osc.Message("/diagnostics/statusled",0.0))
-        return toDisplay
+    def get_display_list(self):
+        messages = [self.diagnostics_data[x] for x in self.diagnostics_display]
+        return [(msg.name, msg.get_color()) for msg in messages]
 
-    def clearDetailedDisplay(self):
-        it = 1
-        toDisplay = []
-        while it <= self.lengthDetailDiagnosticList:
-            message=osc.Message("/diagnostics/key%i"%it,' ')
-            toDisplay.append(message)
-            message=osc.Message("/diagnostics/value%i"%it,' ')
-            toDisplay.append(message)
-            it+=1
-        toDisplay.append(osc.Message("/diagnostics/deviceled/color","gray"))
-        toDisplay.append(osc.Message("/diagnostics/deviceled",0.0))
-        toDisplay.append(osc.Message("/diagnostics/name",""))
-        toDisplay.append(osc.Message("/diagnostics/hardware_id",""))
-        toDisplay.append(osc.Message("/diagnostics/message",""))
-        toDisplay.append(osc.Message("/diagnostics/stamp",""))
-        toDisplay.append(osc.Message("/diagnostics/kvfader",0.0))
-        return toDisplay       
-   
 class DiagnosticsTabpageHandler(AbstractTabpageHandler):
-    def __init__(self, nodeName, tabpageName, tabpageAlias):
-        super(DiagnosticsTabpageHandler, self).__init__(nodeName, tabpageName, tabpageAlias)
+    def __init__(self, touchosc_interface, handler_name, tabpage_names):
+        super(DiagnosticsTabpageHandler, self).__init__(touchosc_interface,
+                                                        handler_name,
+                                                        tabpage_names)
 
-        self.startTopic = rospy.get_param("~" + tabpageName + "/start_topic", "/diagnostics")
+        self.start_topic = rospy.get_param("~" + self.handler_name +
+                                           "/start_topic",
+                                           "/diagnostics")
 
-        #=======================================================================
-        # self.addOscCallback('darray',self.darray_cb)
-        # self.osc_node.addCallback('/kvup',self.kv_updown_cb)
-        # self.osc_node.addCallback('/kvdown',self.kv_updown_cb)
-        # self.osc_node.addCallback('/kvfader',self.kv_updown_cb)
-        self.addOscCallback('dup',self.d_updown_cb)
-        self.addOscCallback('ddown',self.d_updown_cb)
-        self.addOscCallback('dfader',self.d_updown_cb)
-        self.addOscCallback('diagsw',self.diagsw_cb)
-        # self.osc_node.addCallback('/pause',self.pause_cb)
-        #=======================================================================
-        
-        self.diagArray = DiagArray("/diagnostics")
-        self.diagAggArray = DiagArray("/diagnostics_agg")
-        self.diagClients = {}
+        self.add_osc_callback('diagsw', self.stub)
 
-    
-    def initializeTabpage(self):
-        rospy.loginfo("Diagnostics Tabpage Initialized")
-        rospy.loginfo("\t Subscribing to: /diagnostics")
-        rospy.loginfo("\t Subscribing to: /diagnostics_agg")
-        
-        self.diagSub = rospy.Subscriber("/diagnostics", 
-                                        DiagnosticArray,
-                                        self.diag_cb)
-        self.diagAggSub = rospy.Subscriber("/diagnostics_agg",
-                                           DiagnosticArray,
-                                           self.diag_agg_cb)
-        
-        self.sendToAll(osc.Bundle([osc.Message('diaglbl','Start'),
-                                   osc.Message('statusled',1.0)]))
-        it = 1
-        toDisplay = []
-        while it <= 17:
-            toDisplay.append(osc.Message("dled%i/color"%it, 'gray'))
-            toDisplay.append(osc.Message("dled%i"%it,0.0))
-            toDisplay.append(osc.Message("dlabel%i"%it,''))
-            it+=1
-        toDisplay.append(osc.Message("statusled/color","red"))
-        toDisplay.append(osc.Message("statusled",1.0))
-        self.sendToAll(osc.Bundle(toDisplay))
-        
+        self.add_osc_callback('darray', self.stub)
+        self.add_osc_callback('ddown', self.d_updown_cb)
+        self.add_osc_callback('dup', self.d_updown_cb)
+        self.add_osc_callback('dfader', self.d_updown_cb)
+
+        self.add_osc_callback('kvup', self.stub)
+        self.add_osc_callback('kvdown', self.stub)
+        self.add_osc_callback('kvfader', self.stub)
+
+        self.add_osc_callback('pause', self.stub)
+
+        self.osc_clients = {}
+
+        self.diagnostics_data = DiagnosticsData("/diagnostics")
+        self.diagnostics_agg_data = DiagnosticsData("/diagnostics_agg")
+
+    def initialize_tabpage(self):
+        self.diagnostics_sub = rospy.Subscriber("/diagnostics",
+                                                DiagnosticArray,
+                                                self.diag_cb)
+
+        self.diagnostics_agg_sub = rospy.Subscriber("/diagnostics_agg",
+                                                    DiagnosticArray,
+                                                    self.diag_cb)
+
     def diag_cb(self, msg):
-        self.diagArray.addMessage(msg)
-        for address, client in self.diagClients.iteritems():
-            toSend = []
-            if not client.paused and client.getTopic() == '/diagnostics':
-                toSend.extend(client.updateDisplay(True))
-                self.sendToClient(osc.Bundle(toSend), address)
-                
-    def diag_agg_cb(self, msg):
-        self.diagAggArray.addMessage(msg)
-        for address, client in self.diagClients.iteritems():
-            toSend = []
-            if not client.paused and client.getTopic() == '/diagnostics_agg':
-                toSend.extend(client.updateDisplay(True))
-                self.sendToClient(osc.Bundle(toSend), address)
-                
-    def d_updown_cb(self, addressList, valueList, sendAddress):
-        client = self.diagClients[sendAddress[0]]
-        offset = client.diagOffset
-        
-        maxOffset, minOffset = client.getMaxMinDiagOffset()
-        if addressList[1] == 'ddown':
-            if offset < maxOffset:
-                client.setDiagOffset(offset + 1)
-            nofader = False
-        elif addressList[1] == 'dup':
-            if offset > minOffset:
-                client.setDiagOffset(offset - 1)
-            nofader = False
-        elif addressList[1] == 'dfader':
-            client.setDiagOffset(int(round(valueList[0]*maxOffset)))
-            nofader = True
-        self.sendToClient(osc.Bundle(client.updateDisplay(nofader)), 
-                          sendAddress[0])
-            
-    def diagsw_cb(self, addressList, valueList, sendAddress):
-        if len(addressList) == 2 and valueList[0] == 1.0:
-            if sendAddress[0] not in self.diagClients:
-                self.activeClients[sendAddress[0]] = addressList[0]
-                if addressList[0].find('ipod') != -1:
-                    clientType = 'ipod'
-                elif addressList[0].find('ipad') != -1:
-                    clientType = 'ipad'
-                else:
-                    rospy.logerr("Unknown client type in diagnostics handler!")
-                self.diagClients[sendAddress[0]] = DiagnosticsClient(sendAddress[0],
-                                                                     clientType,
-                                                                     self.startTopic)
-                self.diagClients[sendAddress[0]].setMessageDb(self.diagArray, 
-                                                              self.diagAggArray)
-                client = self.diagClients[sendAddress[0]]
+        try:
+            topic = msg._connection_header['topic']
+        except KeyError:
+            return
+        if topic == "/diagnostics":
+            self.diagnostics_data.add_message(msg)
+            display_list = self.diagnostics_data.get_display_list()
+            for addr, client in self.osc_clients.iteritems():
+                if client.topic == topic:
+                    to_display = client.update_diagnostics_display(display_list,
+                                                      self.diagnostics_data.get_system_status(),
+                                                      fader=True)
+                    self.send(osc.Bundle(to_display), clients=[addr])
+        elif topic == "/diagnostics_agg":
+            self.diagnostics_data.add_message(msg)
+        else:
+            raise ValueError("Unknown topic type %s" % topic)
+
+    def d_updown_cb(self, address_list, value_list, send_address):
+        pass
+
+    def cb_diagnostics_update(self):
+        tabpage_status = DiagnosticStatus()
+        tabpage_status.level = tabpage_status.OK
+        tabpage_status.name = self.handler_name + " Handler"
+        tabpage_status.hardware_id = self.ros_name
+        tabpage_status.message = "OK"
+        tabpage_status.values = []
+        for client_name, client in self.osc_clients.iteritems():
+            if client.active:
+                tabpage_status.values.append(KeyValue(client_name,
+                                                      client.topic))
             else:
-                try:
-                    client = self.diagClients[sendAddress[0]]
-                except KeyError:
-                    return
-                if client.getTopic() == '/diagnostics':
-                    client.setTopic('/diagnostics_agg')
-                elif client.getTopic() == '/diagnostics_agg':
-                    client.setTopic('/diagnostics')
-            
-            if client.clientType == 'ipod':
-                val = 'Raw' if client.getTopic() == '/diagnostics' else 'Aggregate'
-            else:
-                val = client.getTopic()
-                    
-            self.sendToClient(osc.Message('diaglbl',val),sendAddress[0])
-            
-    def updateDiagnostics(self):
-        tabpageStatus = DiagnosticStatus()
-        tabpageStatus.level = tabpageStatus.OK
-        tabpageStatus.name = self.tabpageName + " Handler"
-        tabpageStatus.hardware_id = self.nodeName
-        tabpageStatus.message = "OK"
-        tabpageStatus.values = []
-        for clientName, clientObj in self.diagClients.iteritems():
-            tabpageStatus.values.append(KeyValue(key=clientName, value=clientObj.getTopic()))
-            tabpageStatus.values.append(KeyValue(key=clientName, value=clientObj.clientType))
-        return tabpageStatus
-            
-        
+                tabpage_status.values.append(KeyValue(client_name,
+                                                      ""))
+            tabpage_status.values.append(KeyValue(client_name, client.type))
+        return tabpage_status
+
+    def cb_tabpage_active(self, client, tabpage):
+        if self.osc_clients.has_key(client):
+            self.osc_clients[client].active = True
+        else:
+            self.cb_client_connected(client)
+        pass
+
+    def cb_tabpage_closed(self, client, tabpage):
+        if self.osc_clients.has_key(client):
+            self.osc_clients[client].active = False
+        else:
+            self.cb_client_connected(client)
+            self.osc_clients[client].active = False
+        pass
+
+    def cb_client_connected(self, client):
+        parent_client = self.parent.clients[client]
+        self.osc_clients[client] = DiagnosticsClient(parent_client.servicename,
+                                                     parent_client.client_type,
+                                                     "/diagnostics")
+        self.osc_clients[client].active = True
+
+    def cb_client_disconnected(self, client):
+        if self.osc_clients.has_key(client):
+            del self.osc_clients[client]
+
+    def stub(self, address_list, value_list, send_address):
+        pass
+

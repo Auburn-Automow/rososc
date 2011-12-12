@@ -1,7 +1,7 @@
 <launch>
     <node pkg="touchosc_bridge" type="touchosc_bridge.py" name="touchosc_bridge" output="screen">
-        <param name="osc_name" value="ROS Teleop"/>
-        <param name="port" value="9000" />
+        <param name="osc_name" value="ROS Diagnostics"/>
+        <param name="port" value="10000" />
         <param name="print_fallback" value="False"/>
         <param name="load_default" value="False"/>
         <rosparam param="handlers">[diagnostics]</rosparam>

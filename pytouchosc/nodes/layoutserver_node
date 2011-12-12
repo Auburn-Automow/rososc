@@ -44,7 +44,7 @@ if __name__ == '__main__':
                 servers[portIter].run()
                 portIter += 1
             except ValueError as e:
-                rospy.logerr(e.msg)
+                rospy.logerr(e)
 
         
     else:

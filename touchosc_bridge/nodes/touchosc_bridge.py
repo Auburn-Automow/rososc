@@ -45,7 +45,11 @@ if __name__ == "__main__":
                     params = rospy.get_param("~" + handler)
                     HandlerClass = load_handler(params['pkg'],
                                                 params['class'])
-                    aliases = [handler] + params['tabpage_aliases']
+                    try:
+                        aliases = [handler] + params['tabpage_aliases']
+                    except KeyError:
+                        aliases = [handler]
+                        pass
                     rospy.loginfo("Adding %s handler with names %s" % (handler, aliases))
                     loaded_handlers[handler] = HandlerClass(t,
                                                            handler,
@@ -61,11 +65,9 @@ if __name__ == "__main__":
                 if not layout_file and not handlers:
                     rospy.logfatal("""No named handlers and no layout file
                         specified, rososc will not operate""")
-                    return
                 elif not layout_file:
                     rospy.logerr("""No layout file specified, default tabpage
                         handler will not operate.""")
-                    return
 
                 layout = pytouchosc.Layout.createFromExisting(layout_file)
                 for tp in layout.getTabpageNames():
@@ -73,6 +75,8 @@ if __name__ == "__main__":
                         names.add(tp)
                         default_handlers[tp] = DefaultTabpageHandler(t, layout.getTabpage(tp))
                         t.register_handler(default_handlers[tp])
+
+            t.initialize_tabpages()
         except:
             import traceback
             traceback.print_exc()
