@@ -23,6 +23,9 @@ def load_handler(package, handler_class):
         (module, cls) = handler_class.split("/")
         m = __import__(package + "." + module, fromlist=[cls])
         handler = m.__getattribute__(cls)
+    except SyntaxError as e:
+        rospy.logerr("Syntax error in package %s"% package + "." + module)
+        rospy.logerr(str(e))
     except:
         rospy.logerr("Cannot import package: %s" % package + "." + module)
         rospy.logerr("sys.path was " + str(sys.path))
