@@ -4,7 +4,7 @@ import roslib; roslib.load_manifest('diagnostics_handler')
 import rospy
 import time
 
-from diagnostics_handler.diagnosticstabpage import DiagnosticsClient, DiagnosticsMessage
+from diagnostics_handler.diagnosticstabpage import DiagnosticsClient, DiagnosticsItem
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
 
@@ -39,7 +39,11 @@ class Test_DiagnosticsClient(unittest.TestCase):
             self.dc.topic = "notatopic"
         self.assertEqual(cm.exception.message, "Topic notatopic is not supported")
 
-class Test_DiagnosticsMessage(unittest.TestCase):
+    def test_clear_display(self):
+        to_display = self.dc.clear_diagnostics_display()
+        self.assertEqual(len(to_display), 10*4 + 1)
+
+class Test_DiagnosticsItem(unittest.TestCase):
     def setUp(self):
         self.status = DiagnosticStatus()
         self.status.level = self.status.OK
@@ -53,31 +57,46 @@ class Test_DiagnosticsMessage(unittest.TestCase):
         self.stamp = rospy.Time.from_sec(time.time())
 
     def test_constructor(self):
-        msg = DiagnosticsMessage(self.status.name)
+        msg = DiagnosticsItem(self.status.name)
         self.assertEqual(msg.name, self.status.name)
 
     def test_update(self):
-        msg = DiagnosticsMessage(self.status.name)
+        msg = DiagnosticsItem(self.status.name)
         msg.update(self.stamp, self.status)
         self.assertEqual(msg.stamp, self.stamp)
         self.assertEqual(msg.status, self.status.level)
 
     def test_length(self):
-        msg = DiagnosticsMessage(self.status.name)
+        msg = DiagnosticsItem(self.status.name)
         msg.update(self.stamp, self.status)
         self.assertEqual(msg.get_length(), 2)
 
     def test_color(self):
-        msg = DiagnosticsMessage(self.status.name)
+        msg = DiagnosticsItem(self.status.name)
         msg.update(self.stamp, self.status)
         self.assertEqual(msg.get_color(), "green")
 
     def test_display_list(self):
-        msg = DiagnosticsMessage(self.status.name)
+        msg = DiagnosticsItem(self.status.name)
         msg.update(self.stamp, self.status)
         disp = msg.get_display_list()
         self.assertEqual([('Key 1', 'Value 1'), ('Key 2', 'Value 2')],
                          disp)
+
+    def test_get_parent_name(self):
+        msg = DiagnosticsItem("/Other/TouchOSC/Status Message")
+        self.assertEqual("/Other/TouchOSC", msg.get_parent_name())
+        self.assertEqual("Status Message", msg.get_nice_name())
+        
+    def test_diagnostics(self):
+        msg = DiagnosticsItem("/Status Message")
+        self.assertEqual('',msg.get_parent_name())
+        self.assertEqual("Status Message", msg.get_nice_name())
+        
+    def test_no_leading_slash(self):
+        msg = DiagnosticsItem("Status Message")
+        self.assertEqual('', msg.get_parent_name())
+        self.assertEqual("Status Message", msg.get_nice_name())
 
 if __name__ == "__main__":
     unittest.main()
