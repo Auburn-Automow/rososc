@@ -256,6 +256,19 @@ class AbstractTabpageHandler(object):
         """
         pass
 
+    def fallback(self, address_list, value_list, send_address):
+        """
+        Convenience function for having a callback with no action
+        
+        @param address_list: OSC address of the incoming message
+        @type address_list: C{list}
+        @param value_list: OSC value arguments of the incoming message
+        @type value_list: C{list}
+        @param send_address: Address Tuple (IP, Port) of the originating client
+        @type send_address: C{tuple}
+        """
+        pass
+
     def add_osc_callback(self, name, control_callback,
                          tabpages=None, z_callback=None):
         """
