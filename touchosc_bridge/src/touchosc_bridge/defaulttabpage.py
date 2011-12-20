@@ -101,38 +101,32 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         to_send = []
         control_dict = self.message_dict[control_name]
         if msg.common.color != '':
-            print "Updating Color"
             to_send.append(osc.Message('/'.join([control_name, 'color']),
                                       msg.common.color))
             control_dict['color'] = msg.common.color
         if (msg.common.x != 0
             and msg.common.x != int(control_dict['position']['x'])):
-            print "Updating X position"
             to_send.append(osc.Message('/'.join([control_name, 'position/x']),
                                        msg.common.x))
             control_dict['position']['x'] = msg.common.x
         if (msg.common.y != 0
             and msg.common.y != int(control_dict['position']['y'])):
-            print "Updating Y position"
             to_send.append(osc.Message('/'.join([control_name, 'position/y']),
                                       msg.common.y))
             control_dict['position']['y'] = msg.common.y
         if (msg.common.width != 0
             and msg.common.width != int(control_dict['size']['w'])):
-            print "updating width"
             to_send.append(osc.Message('/'.join([control_name, 'size/w']),
                                       msg.common.width))
             control_dict['size']['w'] = msg.common.width
         if (msg.common.height != 0
             and msg.common.height != int(control_dict['size']['h'])):
-            print "updating height"
             to_send.append(osc.Message('/'.join([control_name, 'size/h']),
                                       msg.common.height))
             control_dict['size']['h'] = msg.common.height
         if msg.common.visible != '':
             send = 0 if msg.common.visible.lower() == 'false' else 1
             if bool(send) != bool(control_dict['visibility']):
-                print "updating visibility"
                 to_send.append(osc.Message('/'.join([control_name, 'visible']),
                                           send))
                 control_dict['visibility'] = bool(send)
@@ -211,8 +205,8 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
             if msg._connection_header['callerid'] != self.ros_name:
                 (control, control_dict, to_send) = self.osc_populate_common(msg)
                 if [msg.x, msg.y] != control_dict[None]:
-                    contol_dict[None] = [msg.x, msg.y]
-                    to_send.append(osc.Message(control, *contol_dict[None]))
+                    control_dict[None] = [msg.x, msg.y]
+                    to_send.append(osc.Message(control, *control_dict[None]))
                 self.send_osc_message(msg.header.frame_id, to_send)
         except KeyError:
             pass
@@ -274,14 +268,9 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         self.ros_publishers[control_name].publish(msg)
 
     def multifader_osc_cb(self, address_list, value_list, send_address):
-        print address_list
-        print value_list
-        print send_address
         control_name = address_list[1]
         control_dict = self.message_dict[control_name]
-        print control_dict
         pos = int(address_list[2]) - 1
-        print pos
         control_dict[None][pos] = value_list[0]
         msg = touchosc_msgs.msg.MultiFader()
         msg.header.stamp = rospy.Time.now()
