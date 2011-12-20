@@ -201,8 +201,7 @@ class AbstractTabpageHandler(object):
         """
         tabpage_status = DiagnosticStatus()
         tabpage_status.level = tabpage_status.OK
-        tabpage_status.name = " ".join([self.parent.ros_name,
-                                        self.handler_name,
+        tabpage_status.name = " ".join([self.handler_name,
                                         "Handler"])
         tabpage_status.hardware_id = self.parent.ros_name
         tabpage_status.message = "OK"

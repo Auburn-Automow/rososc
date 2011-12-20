@@ -27,7 +27,7 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         """
         super(DefaultTabpageHandler, self).__init__(touchosc_interface,
                                                     tabpage.name,
-                                                    tabpage.name)
+                                                    [tabpage.name])
         self.tabpage = tabpage
         self.message_dict = self.tabpage.getMessages()
         ros_prefix = self.ros_name + '/' + self.tabpage_names[0] + '/'
@@ -152,10 +152,7 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         return common_msg
 
     def send_osc_message(self, frame_id, to_send):
-        if frame_id != '':
-            self.send(osc.Bundle(to_send), clients=msg.header.frame_id)
-        else:
-            self.send(osc.Bundle(to_send))
+        self.send(osc.Bundle(to_send))
 
     def common_ros_cb(self, msg):
         try:
@@ -204,7 +201,7 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
                 (control, control_dict, to_send) = self.osc_populate_common(msg)
                 if list(msg.values) != control_dict[None]:
                     control_dict[None] = list(msg.values)
-                    toSend.append(osc.Message(control, *control_dict[None]))
+                    to_send.append(osc.Message(control, *control_dict[None]))
                 self.send_osc_message(msg.header.frame_id, to_send)
         except KeyError:
             pass
@@ -277,9 +274,14 @@ class DefaultTabpageHandler(AbstractTabpageHandler):
         self.ros_publishers[control_name].publish(msg)
 
     def multifader_osc_cb(self, address_list, value_list, send_address):
+        print address_list
+        print value_list
+        print send_address
         control_name = address_list[1]
         control_dict = self.message_dict[control_name]
+        print control_dict
         pos = int(address_list[2]) - 1
+        print pos
         control_dict[None][pos] = value_list[0]
         msg = touchosc_msgs.msg.MultiFader()
         msg.header.stamp = rospy.Time.now()
