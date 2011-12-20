@@ -42,59 +42,59 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
         self.cmd.angular.z = 0.0
 
         self.holonomic = True
-        self.masterOsc = None
+        self.master_osc = None
         reactor.callLater(1.0 / self.minPublishFreq, self.publish_cmd)
+        self.active_clients = set()
 
     def initializeTabpage(self):
         self.zero_command()
 
     def zero_command(self):
-            self.sendToAll(osc.Bundle([osc.Message('xy', 0.0, 0.0),
-                                    osc.Message('w', 0.0),
-                                    osc.Message('control', 0.0),
-                                    osc.Message('mapping', 0.0),
-                                    osc.Message('turbo', 0.0),
-                                    osc.Message('mapping_label', "holonomic"),
-                                    osc.Message('master', "")]))
-            self.cmd.linear.x = 0.0
-            self.cmd.linear.y = 0.0
-            self.cmd.angular.z = 0.0
-            self.holonomic = True
-            self.running = False
+        self.send(osc.Bundle([osc.Message('xy', 0.0, 0.0),
+                              osc.Message('w', 0.0),
+                              osc.Message('control', 0.0),
+                              osc.Message('mapping', 0.0),
+                              osc.Message('turbo', 0.0),
+                              osc.Message('mapping_label', "holonomic"),
+                              osc.Message('master', "")]))
+        self.cmd.linear.x = 0.0
+        self.cmd.linear.y = 0.0
+        self.cmd.angular.z = 0.0
+        self.holonomic = True
+        self.running = False
 
     def zero_xy_command(self):
-        self.sendToAll(osc.Message('xy', 0.0, 0.0))
+        self.send(osc.Message('xy', 0.0, 0.0))
         self.cmd.linear.x = 0.0
         self.cmd.linear.y = 0.0
 
     def zero_w_command(self):
-        self.sendToAll(osc.Message('w', 0.0))
+        self.send(osc.Message('w', 0.0))
         self.cmd.angular.z = 0.0
 
     def publish_cmd(self):
-        if self.masterOsc and self.masterOsc not in self.activeClients:
-                self.__oscSendToAll(osc.Bundle([osc.Message('control', 0.0),
-                                           osc.Message('master', '')]))
-                self.masterOsc = None
-        elif self.masterOsc:
-            self.sendToClient(osc.Message('control', 1.0), self.masterOsc)
+        if self.master_osc and self.master_osc not in self.active_clients:
+            self.send(osc.Bundle([osc.Message('control', 0.0),
+                                  osc.Message('master', '')]))
+            self.master_osc = None
+        elif self.master_osc:
+            self.send(osc.Message('control', 1.0), clients=[self.master_osc])
         self.pub.publish(self.cmd)
         reactor.callLater(1.0 / self.minPublishFreq, self.publish_cmd)
 
-    def xypad_callback(self, addressList, valueList, sendAddress):
-        if sendAddress[0] not in self.activeClients:
-                self.activeClients[sendAddress[0]] = addressList[0]
-        if sendAddress[0] == self.masterOsc and len(addressList) == 2:
-            self.sendToAllOtherActive(osc.Message('xy', *valueList),
-                                      self.masterOsc)
+    def xypad_callback(self, address_list, value_list, send_address):
+        if send_address[0] not in self.active_clients:
+            self.active_clients.add(send_address[0])
+        if send_address[0] == self.master_osc and len(address_list) == 2:
+            self.send(osc.Message('xy', *value_list))
             vx = self.max_run_vx if self.running else self.max_vx
             vy = self.max_run_vy if self.running else self.max_vy
-            self.cmd.linear.x = max(min(valueList[0] * vx, vx), -vx)
+            self.cmd.linear.x = max(min(value_list[0] * vx, vx), -vx)
             if self.holonomic:
-                self.cmd.linear.y = max(min(valueList[1] * -vy, vy), -vy)
+                self.cmd.linear.y = max(min(value_list[1] * -vy, vy), -vy)
             else:
-                self.cmd.angular.z = max(min(valueList[1] * -vy, vy), -vy)
-        elif sendAddress[0] == self.masterOsc and valueList[0] == 0.0:
+                self.cmd.angular.z = max(min(value_list[1] * -vy, vy), -vy)
+        elif send_address[0] == self.master_osc and value_list[0] == 0.0:
             self.cmd.linear.x = 0.0
             self.cmd.linear.y = 0.0
             if not self.holonomic:
@@ -102,67 +102,73 @@ class TeleopTabpageHandler(AbstractTabpageHandler):
             self.zero_xy_command()
         self.pub.publish(self.cmd)
 
-    def w_callback(self, addressList, valueList, sendAddress):
+    def w_callback(self, address_list, value_list, send_address):
         if not self.holonomic:
             return
-        if sendAddress[0] not in self.activeClients:
-                self.activeClients[sendAddress[0]] = addressList[0]
-        if sendAddress[0] == self.masterOsc and len(addressList) == 2:
-            self.sendToAllOtherActive(osc.Message('w', *valueList),
-                                      self.masterOsc)
+        if send_address[0] not in self.active_clients:
+            self.active_clients.add(send_address[0])
+        if send_address[0] == self.master_osc and len(address_list) == 2:
+            self.send(osc.Message('w', *value_list))
             vw = self.max_run_vw if self.running else self.max_vw
-            self.cmd.angular.z = max(min(valueList[0] * -vw, vw), -vw)
-        elif sendAddress[0] == self.masterOsc and valueList[0] == 0.0:
+            self.cmd.angular.z = max(min(value_list[0] * -vw, vw), -vw)
+        elif send_address[0] == self.master_osc and value_list[0] == 0.0:
             self.cmd.angular.z = 0.0
             self.zero_w_command()
         self.pub.publish(self.cmd)
 
-    def mapping_callback(self, addressList, valueList, sendAddress):
-        if len(addressList) == 2:
+    def mapping_callback(self, address_list, value_list, send_address):
+        if len(address_list) == 2:
             self.holonomic = not self.holonomic
-            self.sendToAll(osc.Message('w/visible', int(self.holonomic)))
+            self.send(osc.Message('w/visible', int(self.holonomic)))
             if self.holonomic:
-                self.sendToAll(osc.Message('mapping_label', "Holonomic"))
+                self.send(osc.Message('mapping_label', "Holonomic"))
             else:
-                self.sendToAll(osc.Message('mapping_label', "Differential"))
+                self.send(osc.Message('mapping_label', "Differential"))
 
-    def control_callback(self, addressList, valueList, sendAddress):
-        if len(addressList) == 2:
-            if sendAddress[0] not in self.activeClients:
-                self.activeClients[sendAddress[0]] = addressList[0]
-                if not self.masterOsc:
-                    name = self.masterOsc
-                    self.sendToClient(osc.Message('control', 1.0), self.masterOsc)
-                    self.sendToAll(osc.Message('master', name))
-            elif not self.masterOsc and valueList[0] == 1.0:
-                self.masterOsc = sendAddress[0]
-                name = self.masterOsc
-                self.sendToClient(osc.Message('control', 1.0), self.masterOsc)
-                self.sendToAll(osc.Message('master', name))
-            elif valueList[0] == 0.0:
-                self.sendToAll(osc.Message('control', 0.0))
-                self.sendToAll(osc.Message('master', ''))
-                self.masterOsc = None
+    def control_callback(self, address_list, value_list, send_address):
+        if len(address_list) == 2:
+            if send_address[0] not in self.active_clients:
+                self.active_clients.add(send_address[0])
+                if not self.master_osc:
+                    name = self.master_osc
+                    self.send(osc.Message('control', 1.0),
+                              clients=[self.master_osc])
+                    self.send(osc.Message('master', name))
+            elif not self.master_osc and value_list[0] == 1.0:
+                self.master_osc = send_address[0]
+                name = self.master_osc
+                self.send(osc.Message('control', 1.0), clients=[self.master_osc])
+                self.send(osc.Message('master', name))
+            elif value_list[0] == 0.0:
+                self.send(osc.Message('control', 0.0))
+                self.send(osc.Message('master', ''))
+                self.master_osc = None
 
-    def turbo_callback(self, addressList, valueList, sendAddress):
-        if sendAddress[0] not in self.activeClients:
-                self.activeClients[sendAddress[0]] = addressList[0]
-        if sendAddress[0] == self.masterOsc and len(addressList) == 2:
-            if valueList[0] == 1.0:
-                message = osc.Message("turbo", valueList[0])
-                self.sendToAll(message)
+    def turbo_callback(self, address_list, value_list, send_address):
+        if send_address[0] not in self.active_clients:
+                self.activeClients[send_address[0]] = address_list[0]
+        if send_address[0] == self.master_osc and len(address_list) == 2:
+            if value_list[0] == 1.0:
+                message = osc.Message("turbo", value_list[0])
+                self.send(message)
                 self.running = True
-            elif valueList[0] == 0.0:
-                message = osc.Message("turbo", valueList[0])
-                self.sendToAll(message)
+            elif value_list[0] == 0.0:
+                message = osc.Message("turbo", value_list[0])
+                self.send(message)
                 self.running = False
 
-    def tabpageClosedCallback(self, client, tabpage):
-        if client[0] in self.activeClients:
-            del self.activeClients[client[0]]
-        if client[0] == self.masterOsc:
-            self.sendToAll(osc.Bundle([osc.Message('control', 0.0),
-                                       osc.Message('master', '')]))
-            self.masterOsc = None
+    def cb_tabpage_closed(self, client, tabpage):
+        if client[0] == self.master_osc:
+            self.send(osc.Bundle([osc.Message('control', 0.0),
+                                  osc.Message('master', '')]))
+            self.master_osc = None
+        self.active_clients.discard(client)
+
+    def cb_client_disconnected(self, client):
+        if client[0] == self.master_osc:
+            self.send(osc.Bundle([osc.Message('control', 0.0),
+                                  osc.Message('master', '')]))
+            self.master_osc = None
+        self.active_clients.discard(client)
 
 

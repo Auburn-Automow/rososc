@@ -3,7 +3,6 @@ teleop:
   # Required parameters
   pkg: teleop_handler
   class: 'teleoptabpage/TeleopTabpageHandler'
-  tabpage_aliases: [ 'teleop-ipad', 'teleop-ipod' ]
   
   max_vx: 0.8
   max_vy: 0.8

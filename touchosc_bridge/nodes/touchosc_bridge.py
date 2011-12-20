@@ -24,7 +24,7 @@ def load_handler(package, handler_class):
         m = __import__(package + "." + module, fromlist=[cls])
         handler = m.__getattribute__(cls)
     except SyntaxError as e:
-        rospy.logerr("Syntax error in package %s"% package + "." + module)
+        rospy.logerr("Syntax error in package %s" % package + "." + module)
         rospy.logerr(str(e))
     except:
         rospy.logerr("Cannot import package: %s" % package + "." + module)
@@ -65,19 +65,31 @@ if __name__ == "__main__":
                 for tabpage in t.tabpage_handlers.itervalues():
                     [names.add(n) for n in tabpage.tabpage_names]
                 layout_file = rospy.get_param("layout_file", None)
-                if not layout_file and not handlers:
-                    rospy.logfatal("""No named handlers and no layout file
-                        specified, rososc will not operate""")
-                elif not layout_file:
-                    rospy.logerr("""No layout file specified, default tabpage
-                        handler will not operate.""")
+                layout_path = rospy.get_param("layout_path", None)
+                layouts = rospy.get_param("layouts", None)
 
-                layout = pytouchosc.Layout.createFromExisting(layout_file)
-                for tp in layout.getTabpageNames():
-                    if tp not in names:
-                        names.add(tp)
-                        default_handlers[tp] = DefaultTabpageHandler(t, layout.getTabpage(tp))
-                        t.register_handler(default_handlers[tp])
+                if not layout_file and not layout_path:
+                    rospy.logfatal("""Default set, but layout_file and layout_path
+                    were not given, default tabpage will not operate""")
+                if layout_path and not layouts:
+                    rospy.logfatal("""layout_path given, but no layouts
+                    listed, rososc will not operate""")
+                if layout_path and layouts:
+                    for layout in layouts:
+                        source = pytouchosc.Layout.createFromExisting(os.path.join(layout_path,
+                                                                                   layout))
+                        for tp in source.getTabpageNames():
+                            if tp not in names:
+                                names.add(tp)
+                                default_handlers[tp] = DefaultTabpageHandler(t, source.getTabpage(tp))
+                                t.register_handler(default_handlers[tp])
+                if layout_file:
+                    source = pytouchosc.Layout.createFromExisting(layout_file)
+                    for tp in source.getTabpageNames():
+                        if tp not in names:
+                            names.add(tp)
+                            default_handlers[tp] = DefaultTabpageHandler(t, source.getTabpage(tp))
+                            t.register_handler(default_handlers[tp])
 
             t.initialize_tabpages()
         except:
