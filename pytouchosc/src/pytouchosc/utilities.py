@@ -28,14 +28,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 """
-Library for use/manipulation of TouchOSC files for the TouchOSC app on iOS devices.
-See U{http://hexler.net/software/touchosc} and U{http://ros.org/wiki/pytouchosc}
-@author: Michael Carroll
+Module containing additional utility functions for use with TouchOSC layouts.
 """
 
 __author__ = "Michael Carroll <carroll.michael@gmail.com>"
-__version__ = "1.7.4"
 
-from layout import Layout
-from tabpage import Tabpage
-from bonjour import Bonjour
