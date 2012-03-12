@@ -18,6 +18,9 @@ if __name__ == '__main__':
 			print e
 			raise Exception("Unloadable module " + module)
 		
+		(_,_,module_name) = module.partition('_')
+
 		tests = ModuleUnderTest.rostest()
 		for (name, test) in tests:
-			rosunit.unitrun(PKG, name, test)
+			coverage = PKG + '.' + module_name
+			rosunit.unitrun(PKG, name, test, coverage_packages=coverage)
