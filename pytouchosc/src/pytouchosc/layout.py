@@ -119,7 +119,39 @@ class Layout(object):
                     yield i
             except AttributeError:
                 yield (new_path, v)
+
+    def writeToFile(self, path, filename, replace_existing=False):
+        """
+        Write the Layout object to a *.touchosc file able to be loaded to a device.
         
+        @type path: string
+        @param path: Directory path where the .touchosc file is to be stored
+        @type filename: string
+        @param filename: The name of the .touchosc file to be stored.
+        @type replace_existing: bool
+        @param replace_existing: Replace a file if it already exists, default False. 
+        """
+
+        if type(path) is not str:
+            raise ValueError("path is not a string: '%s'"%path)
+        if not os.path.isdir(path):
+            raise ValueError("path does not exist: '%s'"%path)
+        if not os.access(path, os.W_OK):
+            raise IOError("Permission Denied: '%s'"%path)
+        
+        if filename.find('touchosc') != -1:
+            f = os.path.join(path, filename)
+        else:
+            f = os.path.join(path, '%s.touchosc'%filename)
+
+        if os.path.exists(f) and not replace_existing:
+            raise IOError("File already exists: '%s'"%f)
+        
+        touchosc_zip = ZipFile(f, 'w')
+        touchosc_zip.writestr('index.xml', etree.tostring(self._layout))
+        touchosc_zip.close()
+
+
     @apply
     def version():
         doc = """docstring"""
@@ -204,6 +236,3 @@ class Layout(object):
         layoutTag.attrib["orientation"] = orientation
 
         return Layout(etree.ElementTree(layoutTag))
-
-
-    

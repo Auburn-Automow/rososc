@@ -1,18 +1,21 @@
-from pytouchosc.layout import Layout
-
 import unittest
+import os
+import sys
+
 from StringIO import StringIO
 from zipfile import ZipFile
 from lxml import etree
 
-homePath = '/home/mjcarroll/ros/'
-layoutPath = 'mcarroll-ros-pkg/rososc/rososc_tutorials/layouts/'
+sys.path.append(os.path.abspath('../../'))
+from pytouchosc.layout import Layout
+
+layoutPath = os.path.abspath('./layouts')
 layoutFile = 'ROS-Demo-iPad.touchosc'
 layoutBare = 'index.xml'
 
 class LayoutTest_CreateFromExistingZip(unittest.TestCase):
     def setUp(self):
-        self.path = homePath + layoutPath + layoutFile
+        self.path = os.path.join(layoutPath, layoutFile)
         self.layout = Layout.createFromExisting(self.path)
 
     def testCreateFromExisting(self):
@@ -29,9 +32,8 @@ class LayoutTest_CreateFromExistingZip(unittest.TestCase):
         
 class LayoutTest_CreateFromExistingFile(unittest.TestCase):
     def setUp(self):
-        self.path = homePath + layoutPath + layoutBare
-        self.f = open(self.path)
-        self.layout = Layout.createFromExisting(self.f)
+        self.path = os.path.join(layoutPath, layoutBare)
+        self.layout = Layout.createFromExisting(self.path)
 
     def testCreateFromExisting(self):
         self.assertIsInstance(self.layout,Layout,"Not an instance")
@@ -47,7 +49,7 @@ class LayoutTest_CreateFromExistingFile(unittest.TestCase):
         
 class LayoutTest(unittest.TestCase):
     def setUp(self):
-        self.path = homePath + layoutPath + layoutFile
+        self.path = os.path.join(layoutPath, layoutFile)
         self.layout = Layout.createFromExisting(self.path)
         
     def test_getNumberTabpages(self):
@@ -77,7 +79,64 @@ class LayoutTest(unittest.TestCase):
         self.assertEqual(newDict, testDict)
         # Check for side effects
         self.assertEqual(path,'/1')
+
+class LayoutWriteTest(unittest.TestCase):
+    def setUp(self):
+        self.layoutFile = layoutFile
+        self.layoutPath = layoutPath
+        self.layoutJoinPath = os.path.join(self.layoutPath, self.layoutFile)
+
+        self.layout = Layout.createFromExisting(self.layoutJoinPath)
+
+        self.testFile = 'test'
+        self.testFileExt = 'test.touchosc'
+        self.testPath = layoutPath
+        self.testJoinPath = os.path.join(self.testPath, self.testFileExt)
+
+    def tearDown(self):
+        if os.path.exists(self.testJoinPath):
+            os.remove(self.testJoinPath)
+
+    def test_writeToFile_badPath(self):
+        with self.assertRaises(ValueError) as cm:
+            self.layout.writeToFile('a','test.touchosc')
+        self.assertEqual(cm.exception.message, "path does not exist: 'a'")
+
+    def test_writeToFile_unwritablePath(self):
+        # First check to make sure /root exists and is not writable
+        if not os.path.isdir('/root'):
+            self.fail("Test uses /root as a non-writable directory, /root doesn't exist")
+        if os.access('/root', os.W_OK):
+            self.fail("Test uses /root as a non-writable directory, /root is writable, stopping")
         
-    def test_getMessages(self):
-        print self.layout.getMessages(self.layout.getTabpageNames()[0])
-        
+        with self.assertRaises(IOError) as cm:
+            self.layout.writeToFile('/root', 'test')
+        self.assertEqual(cm.exception.message, "Permission Denied: '/root'")
+
+    def test_writeToFile_withExtension(self):
+        self.layout.writeToFile(self.testPath, self.testFileExt)
+
+        self.assertFalse(os.path.exists(self.testJoinPath + '.touchosc'))
+        self.assertTrue(os.path.exists(self.testJoinPath), "Didn't create file")
+
+
+    def test_writeToFile_withoutExtension(self):
+        self.layout.writeToFile(self.testPath, self.testFile)
+
+        self.assertFalse(os.path.exists(self.testJoinPath + '.touchosc'))
+        self.assertTrue(os.path.exists(self.testJoinPath), "Didn't create file")
+
+    def test_writeToFile_alreadyExists(self):
+        with self.assertRaises(IOError) as cm:
+            self.layout.writeToFile(self.layoutPath, self.layoutFile)
+
+    def test_writeToFile_withReplacement(self):
+        f = open(self.testJoinPath, 'w')
+        f.close()
+
+        self.layout.writeToFile(self.testPath, self.testFileExt, replace_existing=True)
+        self.assertGreater(os.path.getsize(self.testJoinPath), 0)
+
+    # def test_writeToFile(self):
+    #     layout = Layout.createFromExisting(os.path.join(self.layoutPath, 'test_ipod_h.touchosc'))
+    #     layout.writeToFile('/tmp', 'test.touchosc', True)

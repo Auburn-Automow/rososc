@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<layout version="10" mode="1" orientation="vertical">
+<tabpage name="MQ==">
+<control name="bGFiZWxYWQ==" x="4" y="542" w="360" h="360" color="purple" type="labelv" text="WFkgUGFk" size="14" background="false" outline="false" >
+</control>
+<control name="eHky" x="4" y="542" w="360" h="360" color="purple" scalef="0.0" scalet="1.0" type="xy" inverted_x="false" inverted_y="false" >
+</control>
+<control name="cHVzaDM=" x="604" y="2" w="120" h="180" color="blue" scalef="0.0" scalet="1.0" type="push" local_off="false" >
+</control>
+<control name="dG9nZ2xlMQ==" x="604" y="182" w="120" h="180" color="yellow" scalef="0.0" scalet="1.0" type="toggle" local_off="false" >
+</control>
+<control name="bGFiZWxQdXNo" x="604" y="2" w="120" h="180" color="blue" type="labelv" text="UHVzaA==" size="14" background="false" outline="false" >
+</control>
+<control name="bGFiZWxUb2dnbGU=" x="604" y="182" w="120" h="180" color="yellow" type="labelv" text="VG9nZ2xl" size="14" background="false" outline="false" >
+</control>
+<control name="VkZhZGVy" x="604" y="546" w="120" h="356" color="green" scalef="0.0" scalet="1.0" type="faderv" response="absolute" inverted="false" centered="false" >
+</control>
+<control name="bGFiZWxGYWRlcnM=" x="604" y="902" w="120" h="120" color="green" type="labelv" text="RmFkZXJz" size="14" background="false" outline="false" >
+</control>
+<control name="SEZhZGVy" x="4" y="902" w="600" h="120" color="green" scalef="0.0" scalet="1.0" type="faderh" response="absolute" inverted="false" centered="false" >
+</control>
+<control name="cm90YXJ5MQ==" x="4" y="182" w="180" h="180" color="orange" scalef="0.0" scalet="1.0" type="rotaryv" response="absolute" inverted="false" centered="false" >
+</control>
+<control name="cm90YXJ5Mg==" x="4" y="2" w="180" h="180" color="orange" scalef="0.0" scalet="1.0" type="rotaryh" response="absolute" inverted="false" centered="false" >
+</control>
+<control name="bXVsdGlwdXNoMQ==" x="304" y="2" w="300" h="180" color="blue" scalef="0.0" scalet="1.0" type="multipush" number_x="5" number_y="3" local_off="false" >
+</control>
+<control name="bXVsdGl0b2dnbGUx" x="304" y="182" w="301" h="180" color="yellow" scalef="0.0" scalet="1.0" type="multitoggle" number_x="5" number_y="3" local_off="false" >
+</control>
+<control name="dGltZTE=" x="664" y="362" w="60" h="180" color="gray" type="timev" size="14" background="true" outline="true" seconds="true" >
+</control>
+<control name="YmF0dGVyeTE=" x="604" y="362" w="60" h="180" color="gray" type="batteryv" size="14" background="true" outline="true" >
+</control>
+<control name="ZW5jb2RlcjE=" x="4" y="362" w="180" h="180" color="red" scalef="0.0" scalet="1.0" type="encoder" >
+</control>
+<control name="bXVsdGlmYWRlcjE=" x="364" y="542" w="240" h="360" color="green" scalef="0.0" scalet="1.0" type="multifaderh" inverted="false" centered="false" number="8" >
+</control>
+<control name="bGFiZWxSb3Rhcnk=" x="184" y="2" w="60" h="360" color="orange" type="labelv" text="Um90YXJ5" size="14" background="false" outline="false" >
+</control>
+<control name="bGFiZWxFbmNvZGVy" x="184" y="362" w="60" h="180" color="red" type="labelv" text="RW5jb2Rlcg==" size="14" background="false" outline="false" >
+</control>
+<control name="bGVkMTI=" x="544" y="362" w="60" h="60" color="red" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkMTM=" x="544" y="422" w="60" h="60" color="red" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkMTQ=" x="544" y="482" w="60" h="60" color="red" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGFiZWw=" x="484" y="362" w="60" h="180" color="gray" type="labelv" text="TGFiZWw=" size="14" background="true" outline="true" >
+</control>
+</tabpage>
+<tabpage name="VGV4dERlbW8=">
+<control name="ZG93bg==" x="184" y="842" w="60" h="180" color="blue" scalef="0.0" scalet="1.0" type="push" local_off="false" >
+</control>
+<control name="ZG93bkxhYmVs" x="184" y="842" w="60" h="180" color="blue" type="labelv" text="RE9XTg==" size="14" background="false" outline="true" >
+</control>
+<control name="dXA=" x="664" y="842" w="60" h="180" color="blue" scalef="0.0" scalet="1.0" type="push" local_off="false" >
+</control>
+<control name="dXBMYWJlbA==" x="664" y="842" w="60" h="180" color="blue" type="labelv" text="VVA=" size="14" background="false" outline="true" >
+</control>
+<control name="bDE=" x="664" y="62" w="60" h="780" color="red" type="labelv" text="" size="14" background="true" outline="false" >
+</control>
+<control name="bDI=" x="604" y="62" w="60" h="780" color="red" type="labelv" text="" size="14" background="true" outline="false" >
+</control>
+<control name="bDM=" x="544" y="62" w="60" h="780" color="red" type="labelv" text="" size="14" background="true" outline="false" >
+</control>
+<control name="bDQ=" x="484" y="62" w="60" h="780" color="red" type="labelv" text="" size="14" background="true" outline="false" >
+</control>
+<control name="bDU=" x="424" y="62" w="60" h="780" color="red" type="labelv" text="" size="14" background="true" outline="false" >
+</control>
+<control name="bDY=" x="364" y="62" w="60" h="780" color="red" type="labelv" text="" size="14" background="true" outline="false" >
+</control>
+<control name="bDc=" x="304" y="62" w="60" h="780" color="red" type="labelv" text="" size="14" background="true" outline="false" >
+</control>
+<control name="bDg=" x="244" y="62" w="60" h="780" color="red" type="labelv" text="" size="14" background="true" outline="false" >
+</control>
+<control name="bDk=" x="184" y="62" w="60" h="780" color="red" type="labelv" text="" size="14" background="true" outline="false" >
+</control>
+<control name="bGVkMQ==" x="664" y="2" w="60" h="60" color="gray" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkMg==" x="604" y="2" w="60" h="60" color="gray" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkMw==" x="544" y="2" w="60" h="60" color="gray" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkNA==" x="484" y="2" w="60" h="60" color="gray" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkNQ==" x="424" y="2" w="60" h="60" color="gray" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkNg==" x="364" y="2" w="60" h="60" color="gray" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkNw==" x="304" y="2" w="60" h="60" color="gray" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkOA==" x="244" y="2" w="60" h="60" color="gray" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="bGVkOQ==" x="184" y="2" w="60" h="60" color="gray" scalef="0.0" scalet="1.0" type="led" >
+</control>
+<control name="ZmFkZXIx" x="244" y="842" w="420" h="180" color="blue" scalef="0.0" scalet="1.0" type="faderh" response="absolute" inverted="true" centered="false" >
+</control>
+</tabpage>
+</layout>
