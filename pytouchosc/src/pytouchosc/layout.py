@@ -109,6 +109,8 @@ class Layout(object):
         receiveDict = self.getNestedReceivableMessages(tabpage)
         return dict(self.walkDict(receiveDict,'/' + str(tabpage)))
     
+    def appendTabpage(self, tabpage):
+
     def walkDict(self, aDict, path='', sep='/'):
         for k, v in aDict.iteritems():
             new_path = path

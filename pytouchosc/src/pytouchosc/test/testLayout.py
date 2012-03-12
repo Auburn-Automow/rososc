@@ -106,15 +106,18 @@ class LayoutWriteTest(unittest.TestCase):
         self.testJoinPath = os.path.join(self.testPath, self.testFileExt)
 
     def tearDown(self):
+        """Clean up after ourselves if the file was written"""
         if os.path.exists(self.testJoinPath):
             os.remove(self.testJoinPath)
 
     def test_writeToFile_badPath(self):
+        """Should fail on non-existant path"""
         with self.assertRaises(ValueError) as cm:
             self.layout.writeToFile('a','test.touchosc')
         self.assertEqual(cm.exception.message, "path does not exist: 'a'")
 
     def test_writeToFile_unwritablePath(self):
+        """Should fail on an unwritable path"""
         # First check to make sure /root exists and is not writable
         if not os.path.isdir('/root'):
             self.fail("Test uses /root as a non-writable directory, /root doesn't exist")
@@ -126,22 +129,26 @@ class LayoutWriteTest(unittest.TestCase):
         self.assertEqual(cm.exception.message, "Permission Denied: '/root'")
 
     def test_writeToFile_withExtension(self):
+        """Should check to see if the argument already has the extension, and not add another"""
         self.layout.writeToFile(self.testPath, self.testFileExt)
 
         self.assertFalse(os.path.exists(self.testJoinPath + '.touchosc'))
         self.assertTrue(os.path.exists(self.testJoinPath), "Didn't create file")
 
     def test_writeToFile_withoutExtension(self):
+        """Should check to see if the argument doesn't have the extension, and add it"""
         self.layout.writeToFile(self.testPath, self.testFile)
 
         self.assertFalse(os.path.exists(self.testJoinPath + '.touchosc'))
         self.assertTrue(os.path.exists(self.testJoinPath), "Didn't create file")
 
     def test_writeToFile_alreadyExists(self):
+        """Raise an IOError if the file already exists"""
         with self.assertRaises(IOError) as cm:
             self.layout.writeToFile(self.layoutPath, self.layoutFile)
 
     def test_writeToFile_withReplacement(self):
+        """Optional parameter to silence the IOError and go ahead and write the file."""
         f = open(self.testJoinPath, 'w')
         f.close()
 

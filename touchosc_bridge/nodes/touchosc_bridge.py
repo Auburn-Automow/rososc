@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+__package__ = 'touchosc_bridge'
+__author__ = 'Michael Carroll <carroll.michael@gmail.com'
+
 import roslib; roslib.load_manifest('touchosc_bridge')
 import rospy
 import sys
