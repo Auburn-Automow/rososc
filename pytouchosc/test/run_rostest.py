@@ -11,7 +11,6 @@ modules_to_test = ['test_layout', 'test_utilities']
 if __name__ == '__main__':
 	import rosunit
 
-
 	for module in modules_to_test:
 		try:
 			exec("import " + module + " as ModuleUnderTest")

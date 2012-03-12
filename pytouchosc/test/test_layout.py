@@ -6,7 +6,7 @@ from StringIO import StringIO
 from zipfile import ZipFile
 from lxml import etree
 
-sys.path.append(os.path.abspath('../../'))
+sys.path.append(os.path.abspath('../src'))
 from pytouchosc.layout import Layout
 
 layoutPath = os.path.abspath('./layouts')
