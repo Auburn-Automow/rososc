@@ -25,7 +25,7 @@ class LayoutTest_CreateFromExistingZip(unittest.TestCase):
         self.assertEqual(self.layout.mode,"1","Mode isn't iPad")
         
     def testCreateFromExistingOrientation(self):
-        self.assertEqual(self.layout.orientation,"vertical","Orientation wrong")
+        self.assertEqual(self.layout.orientation,"horizontal","Orientation wrong")
         
     def testCreateFromExistingVersion(self):
         self.assertEqual(self.layout.version,"10")
@@ -42,7 +42,7 @@ class LayoutTest_CreateFromExistingFile(unittest.TestCase):
         self.assertEqual(self.layout.mode,"1","Mode isn't iPad")
         
     def testCreateFromExistingOrientation(self):
-        self.assertEqual(self.layout.orientation,"vertical","Orientation wrong")
+        self.assertEqual(self.layout.orientation,"horizontal","Orientation wrong")
         
     def testCreateFromExistingVersion(self):
         self.assertEqual(self.layout.version,"10")
@@ -79,6 +79,18 @@ class LayoutTest(unittest.TestCase):
         self.assertEqual(newDict, testDict)
         # Check for side effects
         self.assertEqual(path,'/1')
+
+    def test_setOrientation(self):
+        self.layout.orientation = 'vertical'
+        self.assertEqual(self.layout.orientation, 'vertical')
+        self.layout.orientation = 'horizontal'
+        self.assertEqual(self.layout.orientation, 'horizontal')
+        self.layout.orientation = 'vertical'
+        self.assertEqual(self.layout.orientation, 'vertical')
+        self.layout.orientation = 'horizontal'
+        self.assertEqual(self.layout.orientation, 'horizontal')
+        with self.assertRaises(ValueError) as cm:
+            self.layout.orientation = 'bob'
 
 class LayoutWriteTest(unittest.TestCase):
     def setUp(self):
@@ -118,7 +130,6 @@ class LayoutWriteTest(unittest.TestCase):
 
         self.assertFalse(os.path.exists(self.testJoinPath + '.touchosc'))
         self.assertTrue(os.path.exists(self.testJoinPath), "Didn't create file")
-
 
     def test_writeToFile_withoutExtension(self):
         self.layout.writeToFile(self.testPath, self.testFile)

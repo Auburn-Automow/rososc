@@ -154,7 +154,7 @@ class Layout(object):
 
     @apply
     def version():
-        doc = """docstring"""
+        doc = """The version of the touchosc layout file."""
         def fget(self):
             return self._layoutRoot.attrib['version']
         def fset(self, value):
@@ -163,7 +163,7 @@ class Layout(object):
 
     @apply
     def mode():
-        doc = """docstring"""
+        doc = """The mode (ipod or ipad) of the touchosc layout file."""
         def fget(self):
             return self._layoutRoot.attrib['mode']
         def fset(self, value):
@@ -172,10 +172,25 @@ class Layout(object):
 
     @apply
     def orientation():
-        doc = """docstring"""
+        doc = """The orientation (horizontal or vertical) of the touchosc layout file"""
+        #NOTE: This looks backwards, but it isn't.
+        #       The TouchOSC editor and devices horizontal/vertical is backwards
+        #       from the ones written in the XML file.
         def fget(self):
-            return self._layoutRoot.attrib['orientation']
+            orientation = self._layoutRoot.attrib['orientation']
+            if orientation == 'horizontal':
+                return 'vertical'
+            else:
+                return 'horizontal'
         def fset(self, value):
+            if value == 'horizontal':
+                value = 'vertical'
+            elif value == 'vertical':
+                value = 'horizontal'
+            else:
+                raise ValueError('Incorrect value assignment')
+                return
+
             self._layoutRoot.attrib['orientation'] = str(value).encode('utf-8')
         return property(**locals())
 
