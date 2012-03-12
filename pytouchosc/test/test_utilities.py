@@ -43,5 +43,10 @@ class TestUtilities_MergeLayouts(unittest.TestCase):
 		self.assertEqual(cm.exception.message, "Input list contains layouts with different orientations")
 
 
+def rostest():
+    suite = []
+    suite.append(['MergeUtilities', TestUtilities_MergeLayouts])
+    return suite
+
 if __name__ == "__main__":
 	unittest.main()

@@ -13,40 +13,6 @@ layoutPath = os.path.abspath('./layouts')
 layoutFile = 'ROS-Demo-iPad.touchosc'
 layoutBare = 'index.xml'
 
-class LayoutTest_CreateFromExistingZip(unittest.TestCase):
-    def setUp(self):
-        self.path = os.path.join(layoutPath, layoutFile)
-        self.layout = Layout.createFromExisting(self.path)
-
-    def testCreateFromExisting(self):
-        self.assertIsInstance(self.layout,Layout,"Not an instance")
-        
-    def testCreateFromExistingMode(self):
-        self.assertEqual(self.layout.mode,"1","Mode isn't iPad")
-        
-    def testCreateFromExistingOrientation(self):
-        self.assertEqual(self.layout.orientation,"horizontal","Orientation wrong")
-        
-    def testCreateFromExistingVersion(self):
-        self.assertEqual(self.layout.version,"10")
-        
-class LayoutTest_CreateFromExistingFile(unittest.TestCase):
-    def setUp(self):
-        self.path = os.path.join(layoutPath, layoutBare)
-        self.layout = Layout.createFromExisting(self.path)
-
-    def testCreateFromExisting(self):
-        self.assertIsInstance(self.layout,Layout,"Not an instance")
-        
-    def testCreateFromExistingMode(self):
-        self.assertEqual(self.layout.mode,"1","Mode isn't iPad")
-        
-    def testCreateFromExistingOrientation(self):
-        self.assertEqual(self.layout.orientation,"horizontal","Orientation wrong")
-        
-    def testCreateFromExistingVersion(self):
-        self.assertEqual(self.layout.version,"10")
-        
 class LayoutTest(unittest.TestCase):
     def setUp(self):
         self.path = os.path.join(layoutPath, layoutFile)
@@ -92,6 +58,43 @@ class LayoutTest(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             self.layout.orientation = 'bob'
 
+
+class LayoutTest_CreateFromExistingZip(unittest.TestCase):
+    def setUp(self):
+        self.path = os.path.join(layoutPath, layoutFile)
+        self.layout = Layout.createFromExisting(self.path)
+
+    def testCreateFromExisting(self):
+        self.assertIsInstance(self.layout,Layout,"Not an instance")
+        
+    def testCreateFromExistingMode(self):
+        self.assertEqual(self.layout.mode,"1","Mode isn't iPad")
+        
+    def testCreateFromExistingOrientation(self):
+        self.assertEqual(self.layout.orientation,"horizontal","Orientation wrong")
+        
+    def testCreateFromExistingVersion(self):
+        self.assertEqual(self.layout.version,"10")
+ 
+
+class LayoutTest_CreateFromExistingFile(unittest.TestCase):
+    def setUp(self):
+        self.path = os.path.join(layoutPath, layoutBare)
+        self.layout = Layout.createFromExisting(self.path)
+
+    def testCreateFromExisting(self):
+        self.assertIsInstance(self.layout,Layout,"Not an instance")
+        
+    def testCreateFromExistingMode(self):
+        self.assertEqual(self.layout.mode,"1","Mode isn't iPad")
+        
+    def testCreateFromExistingOrientation(self):
+        self.assertEqual(self.layout.orientation,"horizontal","Orientation wrong")
+        
+    def testCreateFromExistingVersion(self):
+        self.assertEqual(self.layout.version,"10")
+
+
 class LayoutWriteTest(unittest.TestCase):
     def setUp(self):
         self.layoutFile = layoutFile
@@ -119,14 +122,14 @@ class LayoutWriteTest(unittest.TestCase):
     def test_writeToFile_unwritablePath(self):
         """Should fail on an unwritable path"""
         # First check to make sure /root exists and is not writable
-        if not os.path.isdir('/root'):
-            self.fail("Test uses /root as a non-writable directory, /root doesn't exist")
-        if os.access('/root', os.W_OK):
-            self.fail("Test uses /root as a non-writable directory, /root is writable, stopping")
+        if not os.path.isdir('/bin'):
+            self.fail("/bin doesn't exist")
+        if os.access('/bin', os.W_OK):
+            self.fail("/bin is writable, stopping")
         
         with self.assertRaises(IOError) as cm:
-            self.layout.writeToFile('/root', 'test')
-        self.assertEqual(cm.exception.message, "Permission Denied: '/root'")
+            self.layout.writeToFile('/bin', 'test')
+        self.assertEqual(cm.exception.message, "Permission Denied: '/bin'")
 
     def test_writeToFile_withExtension(self):
         """Should check to see if the argument already has the extension, and not add another"""
@@ -155,6 +158,19 @@ class LayoutWriteTest(unittest.TestCase):
         self.layout.writeToFile(self.testPath, self.testFileExt, replace_existing=True)
         self.assertGreater(os.path.getsize(self.testJoinPath), 0)
 
-    # def test_writeToFile(self):
-    #     layout = Layout.createFromExisting(os.path.join(self.layoutPath, 'test_ipod_h.touchosc'))
-    #     layout.writeToFile('/tmp', 'test.touchosc', True)
+
+def suite():
+    load = unittest.TestLoader()
+    suite = load.loadTestsFromTestCase(LayoutTest)
+    suite.addTests(load.loadTestsFromTestCase(LayoutTest_CreateFromExistingZip))
+    suite.addTests(load.loadTestsFromTestCase(LayoutTest_CreateFromExistingFile))
+    suite.addTests(load.loadTestsFromTestCase(LayoutWriteTest))
+    return suite
+
+def rostest():
+    suite = []
+    suite.append(['LayoutTest', LayoutTest])
+    suite.append(['CreateFromExistingFile', LayoutTest_CreateFromExistingFile])
+    suite.append(['CreateFromExistingZip', LayoutTest_CreateFromExistingZip])
+    suite.append(['WriteLayout', LayoutWriteTest])
+    return suite
