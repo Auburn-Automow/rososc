@@ -40,8 +40,8 @@ class Layout(object):
     docstring
     """
     
-    # These dictionaries are probably largely unnecessary, but I'm putting them in
-    # just in case Hexler decides to do a massive update at some point in the
+    # These dictionaries are probably largely unnecessary, but I'm putting them 
+    # in just in case Hexler decides to do a massive update at some point in the
     # future
 
     #: Dictionary of TouchOSC versions
@@ -66,7 +66,7 @@ class Layout(object):
             "vertical":"vertical".encode('utf-8')
             }
 
-    def __init__(self, tree):
+    def __init__(self, tree, name=None):
         """
         Constructor for Layout
 
@@ -77,6 +77,7 @@ class Layout(object):
         self._layout = tree
         self._layoutRoot = tree.getroot()
         self._tabPages = dict()
+        self._name = name
         for tp in self._layoutRoot.getchildren():
             self._tabPages[tp.name] = tp
 
@@ -120,16 +121,19 @@ class Layout(object):
             except AttributeError:
                 yield (new_path, v)
 
-    def writeToFile(self, path, filename, replace_existing=False):
+    def writeToFile(self, path, filename=None, replace_existing=False):
         """
-        Write the Layout object to a *.touchosc file able to be loaded to a device.
+        Write the Layout object to a *.touchosc file able to be loaded to a 
+        device using either the pytouchosc.layoutserver class or the TouchOSC 
+        editor.
         
         @type path: string
         @param path: Directory path where the .touchosc file is to be stored
         @type filename: string
         @param filename: The name of the .touchosc file to be stored.
         @type replace_existing: bool
-        @param replace_existing: Replace a file if it already exists, default False. 
+        @param replace_existing: Replace a file if it already exists, 
+            default False. 
         """
 
         if type(path) is not str:
@@ -139,6 +143,12 @@ class Layout(object):
         if not os.access(path, os.W_OK):
             raise IOError("Permission Denied: '%s'"%path)
         
+        if filename is None and self._name is None:
+            raise ValueError('Layout has no property: name, and filename '
+                'parameter was not set')
+        elif filename is None:
+            filename = self._name
+
         if filename.find('touchosc') != -1:
             f = os.path.join(path, filename)
         else:
@@ -151,48 +161,50 @@ class Layout(object):
         touchosc_zip.writestr('index.xml', etree.tostring(self._layout))
         touchosc_zip.close()
 
+    @property
+    def name(self):
+        return self._name
 
-    @apply
-    def version():
-        doc = """The version of the touchosc layout file."""
-        def fget(self):
-            return self._layoutRoot.attrib['version']
-        def fset(self, value):
-            self._layoutRoot.attrib['version'] = str(value).encode('utf-8')
-        return property(**locals())
+    @name.setter
+    def name(self, value):
+        self._name = value
 
-    @apply
-    def mode():
-        doc = """The mode (ipod or ipad) of the touchosc layout file."""
-        def fget(self):
-            return self._layoutRoot.attrib['mode']
-        def fset(self, value):
-            self._layoutRoot.attrib['mode'] = str(value).encode('utf-8')
-        return property(**locals())
+    @property
+    def version(self):
+        return self._layoutRoot.attrib['version']
 
-    @apply
-    def orientation():
-        doc = """The orientation (horizontal or vertical) of the touchosc layout file"""
+    @version.setter
+    def version(self, value):
+        self._layoutRoot.attrib['version'] = str(value).encode('utf-8')
+
+    @property
+    def mode(self):
+        return self._layoutRoot.attrib['mode']
+
+    @mode.setter
+    def mode(self, value):
+        self._layoutRoot.attrib['mode'] = str(value).encode('utf-8')
+
+    @property
+    def orientation(self):
         #NOTE: This looks backwards, but it isn't.
-        #       The TouchOSC editor and devices horizontal/vertical is backwards
-        #       from the ones written in the XML file.
-        def fget(self):
-            orientation = self._layoutRoot.attrib['orientation']
-            if orientation == 'horizontal':
-                return 'vertical'
-            else:
-                return 'horizontal'
-        def fset(self, value):
-            if value == 'horizontal':
-                value = 'vertical'
-            elif value == 'vertical':
-                value = 'horizontal'
-            else:
-                raise ValueError('Incorrect value assignment')
-                return
+        # The TouchOSC editor and devices horizontal/vertical is backwards
+        # from the ones written in the XML file.
+        orientation = self._layoutRoot.attrib['orientation']
+        if orientation == 'horizontal':
+            return 'vertical'
+        else:
+            return 'horizontal'
 
-            self._layoutRoot.attrib['orientation'] = str(value).encode('utf-8')
-        return property(**locals())
+    @orientation.setter
+    def orientation(self, value):
+        if value == 'horizontal':
+            value = 'vertical'
+        elif value == 'vertical':
+            value = 'horizontal'
+        else:
+            raise ValueError('Incorrect value assignment')
+        self._layoutRoot.attrib['orientation'] = str(value).encode('utf-8')
 
     @classmethod
     def createFromExisting(cls, source):
@@ -200,7 +212,8 @@ class Layout(object):
         Create a TouchOSCLayout instance from an existing TouchOSC Layout.
 
         @type source: filename or fileobject 
-        @param source: Path to an existing .touchosc file, or TouchOSC index file.
+        @param source: Path to an existing .touchosc file, or 
+            TouchOSC index.xml file (from unzipping .touchosc file)
         @rtype: Layout 
         @return: An instance containing the layout 
         """
@@ -214,15 +227,17 @@ class Layout(object):
         layoutParser.setElementClassLookup(lookupControls)
         
         if type(source) is str:
-            (_,extension) = os.path.splitext(source)
+            (path, fname) = os.path.split(source)
+            (name, extension) = os.path.splitext(fname)
             if extension == ".touchosc":
                 f = ZipFile(source, "r")
                 layoutTree = etree.parse(StringIO(f.read("index.xml")), 
                                          layoutParser)
                 f.close()
             elif extension == ".xml":
+                name = None
                 layoutTree = etree.parse(source, layoutParser)
-        return Layout(layoutTree)
+        return Layout(layoutTree, name)
 
     @classmethod
     def createEmpty(cls, version=VERSION["current"],
@@ -234,8 +249,8 @@ class Layout(object):
         A minimum layout must include a version, a mode, and an orientation.
 
         @type version: str
-        @param version: One of the versions from Layout.VERSION.  It is generally 
-            advisable to use VERSION["current"]
+        @param version: One of the versions from Layout.VERSION.  
+            It is generally advisable to use VERSION["current"]
         @type mode: str
         @param mode: One of the modes from Layout.MODE.  Available modes are 
             currently "iPad" and "iPhone".

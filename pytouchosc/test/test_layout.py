@@ -75,6 +75,9 @@ class LayoutTest_CreateFromExistingZip(unittest.TestCase):
         
     def testCreateFromExistingVersion(self):
         self.assertEqual(self.layout.version,"10")
+
+    def testCreateFromExistingName(self):
+        self.assertEqual(self.layout.name, "ROS-Demo-iPad")
  
 
 class LayoutTest_CreateFromExistingFile(unittest.TestCase):
@@ -93,6 +96,10 @@ class LayoutTest_CreateFromExistingFile(unittest.TestCase):
         
     def testCreateFromExistingVersion(self):
         self.assertEqual(self.layout.version,"10")
+
+    def testCreateFromExistingName(self):
+        """Creating from an XML file should not set name"""
+        self.assertEqual(self.layout.name, None)
 
 
 class LayoutWriteTest(unittest.TestCase):
@@ -158,6 +165,21 @@ class LayoutWriteTest(unittest.TestCase):
         self.layout.writeToFile(self.testPath, self.testFileExt, replace_existing=True)
         self.assertGreater(os.path.getsize(self.testJoinPath), 0)
 
+    def test_writeToFile_usingNameProperty(self):
+        """Leaving off the name parameter should use the "name" property"""
+        self.layout.name = self.testFile 
+        self.layout.writeToFile(self.testPath)
+
+        self.assertTrue(os.path.exists(self.testJoinPath), "Didn't create file")
+
+    def test_writeToFile_noNameProperty(self):
+        """Leaving off the name parameter should use the "name" property 
+        If name isn't set, it should raise a ValueError"""
+        self.layout.name = None
+        with self.assertRaises(ValueError) as cm:
+            self.layout.writeToFile(self.layoutPath)
+        self.assertEqual(cm.exception.message, "Layout has no property: name, and filename parameter was not set")
+
 
 def suite():
     load = unittest.TestLoader()
@@ -174,3 +196,6 @@ def rostest():
     suite.append(['CreateFromExistingZip', LayoutTest_CreateFromExistingZip])
     suite.append(['WriteLayout', LayoutWriteTest])
     return suite
+
+if __name__ == "__main__":
+    unittest.main()
