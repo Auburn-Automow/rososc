@@ -34,6 +34,9 @@ class Tabpage(etree.ElementBase):
     """
     docstring
     """ 
+    def _init(self):
+        self.tag = "tabpage"
+
     @apply
     def name():
         doc = """Tabpage Name"""
@@ -43,6 +46,9 @@ class Tabpage(etree.ElementBase):
             self.set('name', base64.b64encode(str(value)))
         return property(**locals())
     
+    def toXml(self, pretty_print=False):
+        return etree.tostring(self, pretty_print=pretty_print)
+        
     def getMessages(self):
         x = list()
         for control in self.getchildren():

@@ -37,6 +37,9 @@ import os
 import threading
 import time
 import logging
+
+from layout import Layout
+
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 class LayoutHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -45,9 +48,9 @@ class LayoutHTTPRequestHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/touchosc')
             self.send_header('Content-Disposition',
-                             'attachment; filename="%s"' % self.server.layoutName)
+                             'attachment; filename="%s.touchosc"' % self.server.layoutName)
             self.end_headers()
-            self.wfile.write(self.server.layoutFile)
+            self.wfile.write(self.server.layoutContents)
         except Exception:
             import traceback
             traceback.print_exc(f=sys.stdout)   
@@ -61,11 +64,11 @@ class LayoutHTTPRequestHandler(BaseHTTPRequestHandler):
 
 class StoppableHTTPServer(HTTPServer):
     stopped = False
-    def __init__(self, log_message, log_error, layoutName, layoutFile, *args):
+    def __init__(self, log_message, log_error, layoutName, layoutContents, *args):
         self.log_message = log_message
         self.log_error = log_error
         self.layoutName = layoutName
-        self.layoutFile = layoutFile
+        self.layoutContents = layoutContents
         HTTPServer.__init__(self,*args)
     
     def serve_forever(self):
@@ -80,7 +83,7 @@ class StoppableHTTPServer(HTTPServer):
         pass
 
 class LayoutServer(object):
-    def __init__(self, layoutPath, name, port, debug = None, info = None, error = None):
+    def __init__(self, layout, name, port, debug = None, info = None, error = None):
         """
         LayoutServer - IO class for sending TouchOSC layouts to iPhones and iPads.
         
@@ -101,12 +104,11 @@ class LayoutServer(object):
             self.error = error
         if info:
             self.info = info
-        
-        if not os.path.lexists(layoutPath):
-            raise ValueError("Layout file not found: %s" % layoutPath)
-        layoutZip = zipfile.ZipFile(layoutPath, "r")
-        layoutFile = layoutZip.read("index.xml")
-        layoutName = os.path.basename(layoutPath)
+
+        self.layout = layout
+        layoutName = str(layout)
+        layoutContents = layout.toXml()
+
         self.bonjourServer = bonjour.Bonjour(name, port,
                                              '_touchosceditor._tcp',
                                              debug = self.debug,
@@ -116,7 +118,7 @@ class LayoutServer(object):
         self.httpd = StoppableHTTPServer(self.debug,
                                          self.error,
                                          layoutName,
-                                         layoutFile,
+                                         layoutContents,
                                          ('', port),
                                          LayoutHTTPRequestHandler)
 
@@ -136,6 +138,22 @@ class LayoutServer(object):
             self.httpd.serve_forever()
         except:
             pass
+
+    @classmethod
+    def createFromExisting(cls, source, name, port, debug=None, info=None, error=None):
+        """
+        Create a TouchOSC LayoutServer from an existing TouchOSC Layout file.
+
+        @type source: filename or fileobject
+        @param source: Path to an existing .touchosc file, or
+            TouchOSC index.xml file (from unzipping .touchosc file)
+        @rtype: Layout
+        @return: An instance containing the layout
+        """
+        layout = Layout.createFromExisting(source)
+
+        return LayoutServer(layout, name, port, debug, info, error)
+
 
 def main(argv, stdout):
     usage = "usage: %prog [options] /path/to/layout.touchosc"
@@ -163,7 +181,7 @@ def main(argv, stdout):
     # Attempt to instantiate the server class.  Returns a ValueError if the
     # layoutFilePath is incorrect    
     try:
-        server = LayoutServer(layoutFilePath, options.name, options.port)
+        server = LayoutServer.createFromExisting(layoutFilePath, options.name, options.port)
     except ValueError as e:
         parser.error(e.message)
         sys.exit(1)

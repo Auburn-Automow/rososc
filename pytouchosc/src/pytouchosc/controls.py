@@ -33,9 +33,14 @@ Module containing classes for representing TouchOSC Controls
 
 from lxml import etree
 import base64
+import copy
+
 
 class Control(etree.ElementBase):
     colors = ["red", "green", "blue", "yellow", "purple", "gray", "orange"]
+
+    def _init(self):
+        self.tag = "control"
 
     @apply
     def name():
@@ -47,6 +52,15 @@ class Control(etree.ElementBase):
         return property(**locals())
 
     @apply
+    def type():
+        doc = """Control Type"""
+        def fget(self):
+            return self.get('type')
+        def fset(self, value):
+            self.set('type', str(value))
+        return property(**locals())
+
+    @apply
     def x():
         doc = """X Position"""
         def fget(self):
@@ -54,7 +68,7 @@ class Control(etree.ElementBase):
         def fset(self, value):
             if type(value) is not int:
                 raise TypeError("X Position must be an integer")
-            self.set('x', value)
+            self.set('x', str(value))
         return property(**locals())
 
     @apply
@@ -65,7 +79,7 @@ class Control(etree.ElementBase):
         def fset(self, value):
             if type(value) is not int:
                 raise TypeError("Y Position must be an integer")
-            self.set('y', value)
+            self.set('y', str(value))
         return property(**locals())
 
     @apply
@@ -76,7 +90,7 @@ class Control(etree.ElementBase):
         def fset(self, value):
             if type(value) is not int:
                 raise TypeError("Width must be an integer")
-            self.set('w', value)
+            self.set('w', str(value))
         return property(**locals())
 
     @apply
@@ -87,7 +101,7 @@ class Control(etree.ElementBase):
         def fset(self, value):
             if type(value) is not int:
                 raise TypeError("Height must be an integer")
-            self.set('h', value)
+            self.set('h', str(value))
         return property(**locals())
 
     @apply
@@ -149,7 +163,7 @@ class TextField(Control):
         def fget(self):
             return self.get('size')
         def fset(self, value):
-            return self.set('size', value)
+            return self.set('size', str(value))
         return property(**locals())
 
     @apply
@@ -159,7 +173,7 @@ class TextField(Control):
             return True if self.get('background') == 'true' else False
         def fset(self, value):
             assert type(value) is bool, "Background must be boolean"
-            self.set('background', str(value).lower)
+            self.set('background', str(value).lower())
         return property(**locals())
 
     @apply
@@ -170,7 +184,7 @@ class TextField(Control):
  
         def fset(self, value):
             assert type(value) is bool, "Outline must be boolean"
-            self.set('outline', str(value).lower)
+            self.set('outline', str(value).lower())
         return property(**locals())
 
 class Label(TextField):
@@ -202,7 +216,7 @@ class Time(TextField):
             return True if self.get('seconds') == 'true' else False
         def fset(self, value):
             assert type(value) is bool, "Seconds must be boolean"
-            self.set('seconds', str(value).lower)
+            self.set('seconds', str(value).lower())
         return property(**locals())
 
 class ScalableControl(Control):
@@ -212,7 +226,7 @@ class ScalableControl(Control):
         def fget(self):
             return self.get('scalef')
         def fset(self, value):
-            self.set('scalef', value)
+            self.set('scalef', str(value))
         return property(**locals())
 
     @apply
@@ -221,7 +235,7 @@ class ScalableControl(Control):
         def fget(self):
             return self.get('scalet')
         def fset(self, value):
-            self.set('scalet', value)
+            self.set('scalet', str(value))
         return property(**locals())
 
     def getSendableMessages(self):
@@ -296,7 +310,7 @@ class MultiButton(Button):
         def fget(self):
             return self.get('number_x')
         def fset(self, value):
-            self.set('number_x', value)
+            self.set('number_x', str(value))
         return property(**locals())
 
     @apply
@@ -305,7 +319,17 @@ class MultiButton(Button):
         def fget(self):
             return self.get('number_y')
         def fset(self, value):
-            self.set('number_y', value)
+            self.set('number_y', str(value))
+        return property(**locals())
+
+    @apply
+    def ex_mode():
+        def fget(self):
+            if self.type == "multitoggle":
+                return self.get('ex_mode')
+        def fset(self, value):
+            if self.type == "multitoggle":
+                self.set('ex_mode', str(value))
         return property(**locals())
     
     def getSendableMessages(self):
@@ -397,7 +421,7 @@ class Dial(ScalableControl):
         def fset(self, value):
             assert any(value == val for val in ['absolute', 'relative']), \
                 "%s is not a valid response (absolute/relative)" % value
-            self.set('response', value)
+            self.set('response', str(value))
         return property(**locals())
 
     def getReceivableMessages(self):
@@ -429,7 +453,7 @@ class MultiDial(Dial):
             return self.get('number')
 
         def fset(self, value):
-            self.set('number', value)
+            self.set('number', str(value))
         return property(**locals())
     
     def getSendableMessages(self):
@@ -481,20 +505,71 @@ type_class_mapping = {
                 "multixy":      MultiXYPad
                 }
 
-def test_controls():
-    lookup = etree.AttributeBasedElementClassLookup('type', type_class_mapping)
-    parser = etree.XMLParser(remove_blank_text=True)
-    parser.setElementClassLookup(lookup)
+def control_factory(type, name, color="gray", x=0, y=0, width=100, height=100):
+    if type == "led":
+        control = LED()
+        control.scalef = 0.0
+        control.scalet = 1.0
+    elif type == "labelv" or type == "labelh":
+        control = Label()
+        control.background = True
+        control.outline = True
+        control.textSize = 14
+        control.text = name
+    elif type == "push" or type == "toggle":
+        control = Button()
+        control.local_off = False
+    elif type=="xy":
+        control = XYPad()
+        control.invert_x = False
+        control.invert_y = False
+    elif type in ["faderv", "faderh", "rotaryv", "rotaryh"]:
+        control = Dial()
+        control.scalef = 0.0
+        control.scalet = 1.0
+        control.inverted = False
+        control.centered = False
+        control.response = "absolute"
+    elif type == "encoder":
+        control = Encoder()
+        control.scalef = 0.0
+        control.scalet = 1.0
+    elif type in ["batteryv", "batteryh"]:
+        control = TextField()
+        control.background = True
+        control.outline = True
+        control.textSize = 14
+    elif type in ["timev", "timeh"]:
+        control = Time()
+        control.background = True
+        control.outline = True
+        control.textSize = 14
+        control.seconds = True
+    elif type in ["multipush", "multitoggle"]:
+        control = MultiButton()
+        control.scalef = 0.0
+        control.scalet = 1.0
+        control.number_x = 5
+        control.number_y = 6
+    elif type in ["multifaderh", "multifaderv"]:
+        control = MultiDial()
+        control.scalef = 0.0
+        control.scalet = 1.0
+        control.number = 5
+        control.inverted = False
+        control.centered = True
+    elif type == "multixy":
+        control = MultiXYPad()
+        control.invert_x = False
+        control.invert_y = False
+    else:
+        raise ValueError
 
-    tree = etree.parse("/home/mjcarroll/index.xml", parser)
-
-    root = tree.getroot()
-    t = root.getchildren()[0]
-    print "Receivable Messages"
-    for x in t.iterchildren():
-        print x.getMessages()
-        
-if __name__ == '__main__':
-    test_controls()
-
-
+    control.name = name
+    control.color = color
+    control.type = type
+    control.x = x
+    control.y = y
+    control.width = width
+    control.height = height
+    return control

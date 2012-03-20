@@ -5,9 +5,14 @@ import sys
 from StringIO import StringIO
 from zipfile import ZipFile
 from lxml import etree
+import random
 
 sys.path.append(os.path.abspath('../src'))
 from pytouchosc.layout import Layout
+
+from pytouchosc.tabpage import Tabpage
+
+import pytouchosc.controls as controls
 
 layoutPath = os.path.abspath('./layouts')
 layoutFile = 'ROS-Demo-iPad.touchosc'
@@ -30,7 +35,17 @@ class LayoutTest(unittest.TestCase):
         tabpageNames = self.layout.getTabpageNames()
         self.assertEqual(tabpageNames[0],'1')
         self.assertEqual(tabpageNames[1],'TextDemo')
-        
+  
+    def test_addTabpage(self):
+        tp = Tabpage()
+        tp.name = "asdf"
+        self.layout.addTabpage(tp)
+        tabpageNames = self.layout.getTabpageNames()
+        self.assertEqual(tabpageNames[0],'1')
+        self.assertEqual(tabpageNames[1],'TextDemo')
+        self.assertEqual(tabpageNames[2], "asdf")
+
+
     def test_walkDict(self):
         aDict = {'toggle1': {None: 0.0, 'z': False}}
         testDict = {'/toggle1': 0.0, '/toggle1/z': False}
@@ -58,6 +73,18 @@ class LayoutTest(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             self.layout.orientation = 'bob'
 
+    def test_str(self):
+        self.assertEqual(str(self.layout),
+            "ROS-Demo-iPad")
+        self.layout.name = None
+        self.assertEqual(str(self.layout),
+            "Untitled-1-TextDemo")
+
+    def test_repr(self):
+        self.assertEqual(repr(self.layout), 
+            ("Layout: ROS-Demo-iPad, Mode: iPod, "
+                "Orientation: horizontal, Tabpages: ['1', 'TextDemo']"))
+
 
 class LayoutTest_CreateFromExistingZip(unittest.TestCase):
     def setUp(self):
@@ -78,7 +105,12 @@ class LayoutTest_CreateFromExistingZip(unittest.TestCase):
 
     def testCreateFromExistingName(self):
         self.assertEqual(self.layout.name, "ROS-Demo-iPad")
- 
+
+    def test_getNumberTabpages(self):
+        self.assertEqual(self.layout.getNumberTabpages(), 2)
+
+    def test_getTabpageNames(self):
+        self.assertEqual(self.layout.getTabpageNames(), ['1', 'TextDemo'])
 
 class LayoutTest_CreateFromExistingFile(unittest.TestCase):
     def setUp(self):
@@ -100,6 +132,12 @@ class LayoutTest_CreateFromExistingFile(unittest.TestCase):
     def testCreateFromExistingName(self):
         """Creating from an XML file should not set name"""
         self.assertEqual(self.layout.name, None)
+
+    def test_getNumberTabpages(self):
+        self.assertEqual(self.layout.getNumberTabpages(), 2)
+
+    def test_getTabpageNames(self):
+        self.assertEqual(self.layout.getTabpageNames(), ['1', 'TextDemo'])
 
 
 class LayoutWriteTest(unittest.TestCase):
@@ -179,6 +217,48 @@ class LayoutWriteTest(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             self.layout.writeToFile(self.layoutPath)
         self.assertEqual(cm.exception.message, "Layout has no property: name, and filename parameter was not set")
+
+class TestAllControls(unittest.TestCase):
+    def randColor(self):
+        colors = controls.Control.colors
+        return colors[random.randint(0,len(colors)-1)]
+
+    def test_allcontrols(self):
+        l = Layout.createEmpty()
+        tp = Tabpage()
+
+        tp.name = "Demo"
+
+        tp.append(controls.control_factory("led","led", color=self.randColor(), x=0, y=0))
+        tp.append(controls.control_factory("labelv","labelv", color=self.randColor(), x=100, y=0))
+        tp.append(controls.control_factory("labelh","labelh", color=self.randColor(), x=200, y=0))
+        tp.append(controls.control_factory("push", "push", color=self.randColor(), x=300, y=0))
+        tp.append(controls.control_factory("toggle", "toggle", color=self.randColor(), x=400, y=0))
+        tp.append(controls.control_factory("xy", "xy", color=self.randColor(), x=500, y=0, width=200, height=200))
+
+        tp.append(controls.control_factory("faderv","faderv", color=self.randColor(), x=0, y=100))
+        tp.append(controls.control_factory("faderh","faderh", color=self.randColor(), x=100, y=100))
+        tp.append(controls.control_factory("rotaryv","rotaryv", color=self.randColor(), x=200, y=100))
+        tp.append(controls.control_factory("rotaryh","rotaryh", color=self.randColor(), x=300, y=100))
+        tp.append(controls.control_factory("encoder", "encoder", color=self.randColor(), x=400, y=100))
+
+        tp.append(controls.control_factory("batteryv","batteryv", color=self.randColor(), x=0, y=200))
+        tp.append(controls.control_factory("batteryh","batteryh", color=self.randColor(), x=100, y=200))
+        tp.append(controls.control_factory("timev","timev", color=self.randColor(), x=200, y=200))
+        tp.append(controls.control_factory("timeh","timeh", color=self.randColor(), x=300, y=200))
+
+        tp.append(controls.control_factory("multipush", "multipush", color=self.randColor(), x=0, y=300, width=300, height=300))
+        tp.append(controls.control_factory("multitoggle", "multitoggle", color=self.randColor(), x=300, y=300, width=300, height=300))
+
+        tp.append(controls.control_factory("multifaderh", "multifaderh", color=self.randColor(), x=0, y=600, width=300, height=300))
+        tp.append(controls.control_factory("multifaderv", "multifaderv", color=self.randColor(), x=300, y=600, width=300, height=300))
+
+        tp.append(controls.control_factory("multixy", "multixy", color=self.randColor(), x=600, y=300, height=600, width=150))
+
+        l.addTabpage(tp)
+        l.writeToFile("/home/mjcarroll", "Demo.touchosc", True)
+
+
 
 
 def suite():

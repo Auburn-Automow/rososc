@@ -1,0 +1,16 @@
+<launch>
+    <arg name="port" value="10000"/>
+    <arg name="name" value="Test Server"/>
+
+    <param name="layout_file" value="$(find rososc_tutorials)/layouts/ROS-Demo-iPad.touchosc" />
+
+    <node pkg="pytouchosc" type="layoutserver_node" name="layoutserver_node">
+        <param name="port" value="$(arg port)"/>
+        <param name="name" value="$(arg name)"/>
+    </node>
+
+    <test test-name="layoutserver_test" pkg="pytouchosc" type="test_layoutserver_node.py">
+        <param name="port" value="$(arg port)"/>
+        <param name="name" value="$(arg name)"/>
+    </test>
+</launch>

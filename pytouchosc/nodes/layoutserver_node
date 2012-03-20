@@ -23,7 +23,7 @@ if __name__ == '__main__':
     
     if file:
         try:
-            server = LayoutServer(file,name,port,
+            server = LayoutServer.createFromExisting(file,name,port,
                     debug = rospy.logdebug,
                     info = rospy.loginfo,
                     error = rospy.logerr)
@@ -36,7 +36,7 @@ if __name__ == '__main__':
         for layout in layouts:
             layoutfile = os.path.join(path,layout)
             try:
-                servers.append(LayoutServer(layoutfile,layout, port+portIter,
+                servers.append(LayoutServer.createFromExisting(layoutfile,layout, port+portIter,
                                             debug = rospy.loginfo,
                                             info = rospy.loginfo,
                                             error = rospy.logerr))

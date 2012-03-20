@@ -33,6 +33,8 @@ import base64
 import os
 from StringIO import StringIO
 
+from copy import deepcopy
+
 import controls, tabpage
 
 class Layout(object):
@@ -81,6 +83,25 @@ class Layout(object):
         for tp in self._layoutRoot.getchildren():
             self._tabPages[tp.name] = tp
 
+    def __str__(self):
+        """
+        String representation of layout
+        """
+        if self.name is None:
+            return "Untitled-" + "-".join(self.getTabpageNames())
+        else:
+            return str(self.name)
+
+    def __repr__(self):
+        string = "Layout: %s, "%(self.name)
+        if self.mode == 1:
+            string += "Mode: iPad, "
+        else:
+            string += "Mode: iPod, "
+        string += "Orientation: %s, "%(self.orientation)
+        string += "Tabpages: %r"%(self.getTabpageNames())
+        return string
+
     def getNumberTabpages(self):
         return len(self._layoutRoot.getchildren())
     
@@ -92,6 +113,14 @@ class Layout(object):
         
     def getTabpage(self, tabpage):
         return self._tabPages[tabpage]
+
+    def addTabpage(self, tabpage):
+        if tabpage.name in self._tabPages:
+            raise ValueError("Duplicate tabpage name exists")
+        self._layoutRoot.append(tabpage)
+        
+        for tp in self._layoutRoot.getchildren():
+            self._tabPages[tp.name] = tp
     
     def getMessages(self, tabpage):
         return self._tabPages[tabpage].getMessages()
@@ -120,6 +149,15 @@ class Layout(object):
                     yield i
             except AttributeError:
                 yield (new_path, v)
+
+    def toXml(self, pretty_print=False):
+        """
+        Return an XML string of the Layout
+
+        @type pretty_print: bool
+        @param pretty_print: Use lxml's pretty print (won't work with clients)
+        """
+        return etree.tostring(self._layout, pretty_print=pretty_print)
 
     def writeToFile(self, path, filename=None, replace_existing=False):
         """
@@ -158,7 +196,8 @@ class Layout(object):
             raise IOError("File already exists: '%s'"%f)
         
         touchosc_zip = ZipFile(f, 'w')
-        touchosc_zip.writestr('index.xml', etree.tostring(self._layout))
+
+        touchosc_zip.writestr('index.xml', '<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(self._layout, method="html"))
         touchosc_zip.close()
 
     @property
